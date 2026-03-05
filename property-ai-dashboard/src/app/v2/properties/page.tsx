@@ -35,7 +35,7 @@ export default function PropertiesPage() {
             "
           >
             <Plus className="h-4 w-4" />
-            Add Propertyyys
+            Add Propertyyyssseee
           </button>
         }
       />
