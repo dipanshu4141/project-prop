@@ -1,5 +1,6 @@
 # root dependencies
 /node_modules
+apps/backend/wa-session
 
 # logs
 *.log
