@@ -1,78 +1,75 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { LeadStage } from '@prisma/client';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../../core/prisma/prisma.service';
+import { ClientPropertyStatus, LeadStage } from '@prisma/client';
 
 @Injectable()
 export class ClientsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, 
+    private readonly config: ConfigService,
+  ) {}
 
-  /* =====================================================
-   * 🧠 INTERNAL HELPERS
-   * ===================================================== */
+  /* ================================================================
+   * HELPERS
+   * ================================================================ */
 
-  private followUpRank(date: Date | null) {
-    if (!date) return 4; // lowest priority
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-
-    if (d < today) return 1; // overdue
+  private followUpRank(date: Date | null): number {
+    if (!date) return 4;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const d     = new Date(date); d.setHours(0, 0, 0, 0);
+    if (d < today)                       return 1; // overdue
     if (d.getTime() === today.getTime()) return 2; // today
-    return 3; // upcoming
+    return 3;                                       // upcoming
   }
 
-  private buildRequirementLabel(properties: any[]) {
+  private buildRequirementLabel(properties: any[]): string {
     if (properties.length === 0) return '—';
-
-    const latest = properties[0]?.property;
+    const latest = properties[0]?.listing;
     if (!latest) return '—';
-
-    const base = [
-      latest.bhk,
-      latest.propertySubType,
-      latest.city,
-    ]
+    const base = [latest.bhk, latest.propertySubType, latest.city]
       .filter(Boolean)
       .join(' ');
-
-    return properties.length === 1
-      ? base
-      : `${base} +${properties.length - 1} more`;
+    return properties.length === 1 ? base : `${base} +${properties.length - 1} more`;
   }
 
-  /* =====================================================
-   * 👤 CLIENT CORE
-   * ===================================================== */
+  /* ================================================================
+   * CLIENT CORE
+   * ================================================================ */
 
-  async getOrCreateClient(phone: string, name?: string) {
-    const existing = await this.prisma.client.findUnique({
-      where: { phone },
+  /**
+   * Find or create a client scoped to a workspace.
+   * Same phone can exist in multiple workspaces — always filter by workspaceId.
+   */
+  async getOrCreateClient(
+    workspaceId: string,
+    phone:       string,
+    name?:       string,
+  ) {
+    // Lookup by workspace + phone (unique per schema)
+    const existing = await this.prisma.client.findFirst({
+      where: { workspaceId, phones: { some: { phone } } },
     });
-  
-    // ✅ If client already exists, DO NOT overwrite name
-    if (existing) {
-      return existing;
-    }
-  
-    // ✅ Create only once
+
+    if (existing) return existing;
+
     return this.prisma.client.create({
       data: {
-        phone,
+        workspaceId,
         name,
+        phones: {
+          create: { phone, primary: true },
+        },
       },
     });
-  }  
-  
+  }
 
-  async getClient(clientId: string) {
-    return this.prisma.client.findUnique({
-      where: { id: clientId },
+  async getClient(workspaceId: string, clientId: string) {
+    return this.prisma.client.findFirst({
+      where: { id: clientId, workspaceId },   // ← workspace guard
       include: {
+        phones: true,
         properties: {
-          include: { property: true },
+          include: { listing: true },
           orderBy: { sharedAt: 'desc' },
         },
         events: {
@@ -82,18 +79,18 @@ export class ClientsService {
     });
   }
 
-  /* =====================================================
-   * 📥 LEADS INBOX (CLIENT-CENTRIC, NO DUPLICATES)
-   * ===================================================== */
+  /* ================================================================
+   * LEADS INBOX — client-centric, no duplicates
+   * ================================================================ */
 
-  async getLeadsInbox() {
+  async getLeadsInbox(workspaceId: string) {
     const clients = await this.prisma.client.findMany({
+      where: { workspaceId },          // ← workspace guard
       include: {
+        phones: true,
         properties: {
           orderBy: { sharedAt: 'desc' },
-          include: {
-            property: true,
-          },
+          include: { listing: true },
         },
       },
     });
@@ -108,17 +105,20 @@ export class ClientsService {
           ? new Date(Math.min(...followUps.map((d) => d.getTime())))
           : null;
 
+      const primaryPhone = client.phones.find((p) => p.primary)?.phone
+        ?? client.phones[0]?.phone
+        ?? '';
+
       return {
-        clientId: client.id,
-        name: client.name,
-        phone: client.phone,
-        propertiesCount: client.properties.length,
-        requirementLabel: this.buildRequirementLabel(client.properties),
+        clientId:           client.id,
+        name:               client.name,
+        phone:              primaryPhone,
+        propertiesCount:    client.properties.length,
+        requirementLabel:   this.buildRequirementLabel(client.properties),
         nearestFollowUpAt,
       };
     });
 
-    // 🔥 CRM-style priority sorting
     rows.sort(
       (a, b) =>
         this.followUpRank(a.nearestFollowUpAt) -
@@ -128,89 +128,132 @@ export class ClientsService {
     return rows;
   }
 
-  /* =====================================================
-   * 🏠 CLIENT ↔ PROPERTY
-   * ===================================================== */
+  /* ================================================================
+   * CLIENT ↔ LISTING
+   * ================================================================ */
 
-  async shareProperty(clientId: string, propertyId: string) {
+  async shareProperty(
+    workspaceId: string,
+    clientId:    string,
+    listingId:   string,   // was propertyId — now WorkspaceListing.id
+  ) {
+    // Guard: client must belong to this workspace
+    const client = await this.prisma.client.findFirst({
+      where: { id: clientId, workspaceId },
+    });
+    if (!client) throw new Error('Client not found in workspace');
+
     const cp = await this.prisma.clientProperty.upsert({
       where: {
-        clientId_propertyId: { clientId, propertyId },
+        clientId_listingId: { clientId, listingId },
       },
       update: { lastActionAt: new Date() },
-      create: { clientId, propertyId },
+      create:  { clientId, listingId },
     });
 
-    await this.createEvent(clientId, 'PROPERTY_SHARED', { propertyId });
+    await this.createEvent(clientId, 'PROPERTY_SHARED', { listingId });
     return cp;
   }
 
   async updateClientPropertyStatus(
-    clientPropertyId: string,
-    status: LeadStage,
+    workspaceId:       string,
+    clientPropertyId:  string,
+    status:            LeadStage,
   ) {
+    // Resolve and guard
+    const cp = await this.prisma.clientProperty.findFirst({
+      where: {
+        id: clientPropertyId,
+        client: { workspaceId },     // ← workspace guard via relation
+      },
+    });
+    if (!cp) throw new Error('ClientProperty not found');
+
     const updated = await this.prisma.clientProperty.update({
       where: { id: clientPropertyId },
-      data: {
-        status,
-        lastActionAt: new Date(),
-      },
+      data:  { status, lastActionAt: new Date() },
     });
 
     await this.createEvent(updated.clientId, 'STATUS_CHANGED', {
-      propertyId: updated.propertyId,
+      listingId: updated.listingId,
       status,
     });
 
     return updated;
   }
 
-  async updateClientPropertyFollowUp(
+  async updateClientPropertyClientStatus(
     clientPropertyId: string,
-    followUpAt: string,
+    clientStatus: ClientPropertyStatus,
+    workspaceId: string,
   ) {
+    const cp = await this.prisma.clientProperty.findFirst({
+      where: {
+        id: clientPropertyId,
+        listing: { workspaceId },
+      },
+    });
+    if (!cp) throw new NotFoundException('ClientProperty not found');
+
+    return this.prisma.clientProperty.update({
+      where: { id: clientPropertyId },
+      data:  { clientStatus },
+    });
+  }
+
+  async updateClientPropertyFollowUp(
+    workspaceId:      string,
+    clientPropertyId: string,
+    followUpAt:       string,
+  ) {
+    const cp = await this.prisma.clientProperty.findFirst({
+      where: { id: clientPropertyId, client: { workspaceId } },
+    });
+    if (!cp) throw new Error('ClientProperty not found');
+
     const date = new Date(followUpAt);
 
     const updated = await this.prisma.clientProperty.update({
       where: { id: clientPropertyId },
-      data: {
-        followUpAt: date,
-        lastActionAt: new Date(),
-      },
+      data:  { followUpAt: date, lastActionAt: new Date() },
     });
 
     await this.createEvent(updated.clientId, 'FOLLOW_UP_SET', {
-      propertyId: updated.propertyId,
+      listingId: updated.listingId,
       followUpAt: date,
-      auto: false,
     });
 
     return updated;
   }
 
-  /* =====================================================
-   * 📝 NOTES
-   * ===================================================== */
+  /* ================================================================
+   * NOTES
+   * ================================================================ */
 
-  async addNote(clientId: string, note: string) {
+  async addNote(workspaceId: string, clientId: string, note: string) {
+    // Guard
+    const client = await this.prisma.client.findFirst({
+      where: { id: clientId, workspaceId },
+    });
+    if (!client) throw new Error('Client not found');
     return this.createEvent(clientId, 'NOTE_ADDED', { note });
   }
 
-  /* =====================================================
-   * 📅 FOLLOW-UPS (DASHBOARD)
-   * ===================================================== */
+  /* ================================================================
+   * FOLLOW-UPS (dashboard)
+   * ================================================================ */
 
-  async getFollowUpsToday() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  async getFollowUpsToday(workspaceId: string) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
 
     const rows = await this.prisma.clientProperty.findMany({
       where: {
         followUpAt: { lte: today },
+        client: { workspaceId },          // ← workspace guard
       },
       include: {
-        client: true,
-        property: true,
+        client:  true,
+        listing: true,
       },
       orderBy: { followUpAt: 'asc' },
     });
@@ -218,23 +261,19 @@ export class ClientsService {
     return this.mapFollowUps(rows);
   }
 
-  async getUpcomingFollowUps() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const end = new Date(today);
+  async getUpcomingFollowUps(workspaceId: string) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const end   = new Date(today);
     end.setDate(end.getDate() + 7);
 
     const rows = await this.prisma.clientProperty.findMany({
       where: {
-        followUpAt: {
-          gt: today,
-          lte: end,
-        },
+        followUpAt: { gt: today, lte: end },
+        client: { workspaceId },          // ← workspace guard
       },
       include: {
-        client: true,
-        property: true,
+        client:  true,
+        listing: true,
       },
       orderBy: { followUpAt: 'asc' },
     });
@@ -244,69 +283,63 @@ export class ClientsService {
 
   private mapFollowUps(rows: any[]) {
     return rows.map((r) => ({
-      clientId: r.clientId,
-      clientName: r.client.name,
-      clientPhone: r.client.phone,
-      followUpAt: r.followUpAt,
-      property: r.property,
+      clientId:    r.clientId,
+      clientName:  r.client.name,
+      followUpAt:  r.followUpAt,
+      property:    r.listing,           // frontend key kept as 'property' for compat
     }));
   }
 
-  /* =====================================================
-   * 📲 WHATSAPP
-   * ===================================================== */
+  /* ================================================================
+   * WHATSAPP
+   * ================================================================ */
 
-  async getWhatsappOptions(clientId: string) {
+  async getWhatsappOptions(workspaceId: string, clientId: string) {
+    const client = await this.prisma.client.findFirst({
+      where: { id: clientId, workspaceId },
+    });
+    if (!client) throw new Error('Client not found');
+
     const cps = await this.prisma.clientProperty.findMany({
       where: {
         clientId,
         status: { notIn: [LeadStage.CLOSED, LeadStage.LOST] },
       },
-      include: {
-        property: true,
-      },
+      include: { listing: true },
       orderBy: { sharedAt: 'desc' },
     });
 
     return cps.map((cp) => ({
       clientPropertyId: cp.id,
-      label: [
-        cp.property.bhk,
-        cp.property.propertySubType,
-        cp.property.area,
-        cp.property.city,
-      ]
+      label: [cp.listing.bhk, cp.listing.propertySubType, cp.listing.area, cp.listing.city]
         .filter(Boolean)
         .join(' '),
-      price: cp.property.price,
+      price:      cp.listing.price,
       followUpAt: cp.followUpAt,
-      status: cp.status,
+      status:     cp.status,
     }));
   }
 
-  async getWhatsappDraft(clientPropertyId: string) {
-    const cp = await this.prisma.clientProperty.findUnique({
-      where: { id: clientPropertyId },
-      include: {
-        client: true,
-        property: true,
+  async getWhatsappDraft(workspaceId: string, clientPropertyId: string) {
+    const cp = await this.prisma.clientProperty.findFirst({
+      where: {
+        id: clientPropertyId,
+        client: { workspaceId },
       },
+      include: { client: true, listing: true },
     });
 
     if (!cp) throw new Error('ClientProperty not found');
 
-    return {
-      message: this.generateWhatsappDraft(cp.client, cp),
-    };
+    return { message: this.generateWhatsappDraft(cp.client, cp) };
   }
 
-  async markWhatsappSent(clientPropertyId: string) {
+  async markWhatsappSent(workspaceId: string, clientPropertyId: string) {
     const now = new Date();
 
-    const cp = await this.prisma.clientProperty.findUnique({
-      where: { id: clientPropertyId },
+    const cp = await this.prisma.clientProperty.findFirst({
+      where: { id: clientPropertyId, client: { workspaceId } },
     });
-
     if (!cp) throw new Error('ClientProperty not found');
 
     let followUpAt = cp.followUpAt;
@@ -318,46 +351,73 @@ export class ClientsService {
     const updated = await this.prisma.clientProperty.update({
       where: { id: clientPropertyId },
       data: {
-        status: LeadStage.CONTACTED,
+        status:         LeadStage.CONTACTED,
         lastContactedAt: now,
         followUpAt,
-        lastActionAt: now,
+        lastActionAt:   now,
       },
     });
 
     await this.createEvent(updated.clientId, 'WHATSAPP_SENT', {
-      propertyId: updated.propertyId,
+      listingId: updated.listingId,
     });
 
     return updated;
   }
 
   generateWhatsappDraft(client: any, cp: any) {
-    const name = client.name || 'there';
-    const p = cp.property;
-
-    const label = `${p.bhk ?? ''} ${p.propertySubType ?? 'property'} in ${
-      p.area ?? p.city ?? 'your area'
+    const name    = client.name || 'there';
+    const listing = cp.listing;
+    const label   = `${listing.bhk ?? ''} ${listing.propertySubType ?? 'property'} in ${
+      listing.area ?? listing.city ?? 'your area'
     }`;
-
     return `Hi ${name}, following up regarding the ${label}. Let me know how you'd like to proceed.`;
   }
 
-  /* =====================================================
-   * 🔁 EVENTS
-   * ===================================================== */
+  /* ================================================================
+   * EVENTS (internal)
+   * ================================================================ */
 
   private async createEvent(
     clientId: string,
-    type: string,
+    type:     string,
     metadata?: Record<string, any>,
   ) {
     return this.prisma.clientEvent.create({
-      data: {
-        clientId,
-        type,
-        metadata: metadata ?? {},
-      },
+      data: { clientId, type, metadata: metadata ?? {} },
     });
   }
+
+  async createShareToken(
+    clientId: string,
+    workspaceId: string,
+  ): Promise<{ url: string; expiresAt: Date }> {
+    // Verify the client exists and belongs to this workspace
+    const client = await this.prisma.client.findFirst({
+      where: { id: clientId, workspaceId },
+      select: { id: true },
+    });
+    if (!client) throw new NotFoundException('Client not found');
+  
+    // Replace any existing token for this client+workspace (refresh)
+    await this.prisma.clientShareToken.deleteMany({
+      where: { clientId, workspaceId },
+    });
+  
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7-day expiry
+  
+    const shareToken = await this.prisma.clientShareToken.create({
+      data: { clientId, workspaceId, expiresAt },
+    });
+  
+    const frontendUrl =
+      this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3001';
+  
+    return {
+      url: `${frontendUrl}/share/${shareToken.token}`,
+      expiresAt,
+    };
+  }
+
 }

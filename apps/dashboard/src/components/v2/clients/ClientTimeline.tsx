@@ -1,93 +1,93 @@
 "use client";
 
-import { Clock, MessageCircle, StickyNote, Calendar } from "lucide-react";
+import { Clock, MessageCircle, StickyNote, Calendar, ArrowRightLeft } from "lucide-react";
 
 type ClientEvent = {
-  id: string;
-  type: string;
+  id:        string;
+  type:      string;
   metadata?: any;
   createdAt: string;
 };
 
 function timeAgo(date: string) {
   const diff = Date.now() - new Date(date).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1)  return "just now";
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24)  return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  if (days < 30) return `${days}d ago`;
+  return new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
-function iconFor(type: string) {
-  switch (type) {
-    case "PROPERTY_SHARED":
-      return <Calendar className="h-4 w-4 text-blue-600" />;
-    case "WHATSAPP_SENT":
-      return <MessageCircle className="h-4 w-4 text-green-600" />;
-    case "FOLLOW_UP_SET":
-      return <Clock className="h-4 w-4 text-yellow-600" />;
-    case "NOTE_ADDED":
-      return <StickyNote className="h-4 w-4 text-purple-600" />;
-    default:
-      return <Clock className="h-4 w-4 text-muted-foreground" />;
-  }
-}
+type EventMeta = { icon: React.ElementType; label: string; color: string; dot: string };
 
-function labelFor(event: ClientEvent) {
+function metaFor(event: ClientEvent): EventMeta {
   switch (event.type) {
     case "PROPERTY_SHARED":
-      return "Property shared";
+      return { icon: Calendar,       label: "Property shared",                                       color: "text-sky-600",     dot: "bg-sky-400"     };
     case "WHATSAPP_SENT":
-      return "WhatsApp sent";
+      return { icon: MessageCircle,  label: "WhatsApp sent",                                         color: "text-emerald-600", dot: "bg-emerald-400" };
     case "FOLLOW_UP_SET":
-      return event.metadata?.auto
-        ? "Follow-up auto set"
-        : "Follow-up scheduled";
+      return { icon: Clock,          label: event.metadata?.auto ? "Follow-up auto set" : "Follow-up scheduled", color: "text-amber-600",   dot: "bg-amber-400"   };
     case "NOTE_ADDED":
-      return "Note added";
+      return { icon: StickyNote,     label: "Note added",                                            color: "text-violet-600",  dot: "bg-violet-400"  };
     case "STATUS_CHANGED":
-      return "Status changed";
+      return { icon: ArrowRightLeft, label: "Status updated",                                        color: "text-slate-500",   dot: "bg-slate-300"   };
     default:
-      return "Activity";
+      return { icon: Clock,          label: "Activity",                                              color: "text-slate-400",   dot: "bg-slate-200"   };
   }
 }
 
 export function ClientTimeline({ events }: { events: ClientEvent[] }) {
   if (!events || events.length === 0) {
     return (
-      <div className="text-sm text-muted-foreground">
-        No activity yet
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <div className="mb-2 text-xl">📋</div>
+        <p className="text-[13px] font-medium text-slate-600">No activity yet</p>
+        <p className="text-[11.5px] text-slate-400 mt-0.5">Actions like sharing properties and notes will appear here.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {events.map((e) => (
-        <div key={e.id} className="flex items-start gap-3">
-          <div className="mt-1 opacity-60">
-            {iconFor(e.type)}
-          </div>
+    <div className="relative space-y-0">
+      {/* Vertical line */}
+      <div className="absolute left-[11px] top-2 bottom-2 w-px bg-slate-100" />
 
-          <div>
-            <div className="text-sm">
-              {labelFor(e)}
+      {events.map((e, i) => {
+        const { icon: Icon, label, color, dot } = metaFor(e);
+        return (
+          <div key={e.id} className="relative flex items-start gap-3 pb-4 last:pb-0">
+            {/* Dot */}
+            <div className={`relative z-10 mt-1 flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-full bg-white border-2 border-slate-100`}>
+              <div className={`h-2 w-2 rounded-full ${dot}`} />
             </div>
 
-            {e.metadata?.note && (
-              <div className="text-xs text-muted-foreground mt-1">
-                “{e.metadata.note}”
+            {/* Content */}
+            <div className="flex-1 min-w-0 pt-0.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${color}`} />
+                  <p className="text-[13px] font-medium text-slate-800 truncate">{label}</p>
+                </div>
+                <span className="text-[11px] text-slate-400 flex-shrink-0">{timeAgo(e.createdAt)}</span>
               </div>
-            )}
 
-            <div className="text-xs text-muted-foreground mt-1">
-              {timeAgo(e.createdAt)}
+              {e.metadata?.note && (
+                <div className="mt-1.5 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
+                  <p className="text-[12px] text-slate-600 italic">"{e.metadata.note}"</p>
+                </div>
+              )}
+
+              {e.metadata?.status && (
+                <p className="text-[11.5px] text-slate-400 mt-0.5">→ {e.metadata.status}</p>
+              )}
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

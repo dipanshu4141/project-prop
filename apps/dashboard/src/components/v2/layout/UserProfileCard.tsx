@@ -2,23 +2,49 @@
 
 import { LogOut } from "lucide-react";
 
-export function UserProfileCard() {
+type Props = {
+  /** When true: renders only the avatar circle (for the mobile top bar) */
+  mobileCompact?: boolean;
+};
+
+export function UserProfileCard({ mobileCompact = false }: Props) {
+  /* ── Mobile: avatar-only pill ── */
+  if (mobileCompact) {
+    return (
+      <button
+        aria-label="Your profile"
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-[12px] font-bold text-white ring-2 ring-white/20 hover:ring-white/40 transition-all duration-150"
+      >
+        U
+      </button>
+    );
+  }
+
+  /* ── Desktop: full card ── */
   return (
-    <div className="rounded-xl border bg-card p-3">
+    <div className="rounded-xl bg-white/6 border border-white/10 p-3">
       <div className="flex items-center gap-3">
-        <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-sm font-semibold">
+        {/* Avatar */}
+        <div className="h-8 w-8 rounded-full bg-emerald-500 flex items-center justify-center text-[12px] font-bold text-white flex-shrink-0">
           U
         </div>
-        <div className="flex-1">
-          <div className="text-sm font-medium leading-none">Your Name</div>
-          <div className="text-xs text-muted-foreground">Broker</div>
-        </div>
-      </div>
 
-      <button className="mt-3 flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">
-        <LogOut className="h-4 w-4" />
-        Logout
-      </button>
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold text-white truncate leading-tight">
+            Your Name
+          </p>
+          <p className="text-[11px] text-white/40 mt-0.5">Broker</p>
+        </div>
+
+        {/* Logout icon button */}
+        <button
+          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-white/30 hover:bg-white/10 hover:text-white/80 transition-all duration-150"
+          aria-label="Logout"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }

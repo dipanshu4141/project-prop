@@ -7,190 +7,165 @@ import {
   Body,
   Query,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { PropertyStatus } from '@prisma/client';
 import { PropertiesService } from './properties.service';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
-import { AttachAgentByPhoneDto } from './dto/attach-agent.dto';
+import { JwtAuthGuard } from '../../auth/guards/auth.guards';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { JwtPayload } from '../../auth/jwt-payload.interface';
 
 @Controller('properties')
+@UseGuards(JwtAuthGuard)   // ← every route in this controller requires a valid JWT
 export class PropertiesController {
   constructor(private readonly propertiesService: PropertiesService) {}
 
-  // ================================
-  // 📄 PROPERTY LISTING
-  // ================================
+  // ================================================================
+  // LIST
+  // ================================================================
 
   @Get()
-  findAll(@Query() query: any) {
-    return this.propertiesService.findAll(query);
+  findAll(
+    @CurrentUser() user: JwtPayload,
+    @Query() query: any,
+  ) {
+    return this.propertiesService.findAll(user.workspaceId, query);
   }
 
-  // ================================
-  // 📜 LEAD PIPELINE VIEWS (GLOBAL)
-  // ================================
+  // ================================================================
+  // FOLLOW-UPS
+  // ================================================================
 
   @Get('leads/followups-today')
-  getFollowups() {
-    return this.propertiesService.getFollowUpsToday();
+  getFollowupsToday(@CurrentUser() user: JwtPayload) {
+    return this.propertiesService.getFollowUpsToday(user.workspaceId);
   }
 
-  @Get('leads/open')
-  getOpenLeads() {
-    return this.propertiesService.getOpenLeads();
-  }
+  // ================================================================
+  // ACTIVITY LOG  (before :id to avoid route conflict)
+  // ================================================================
 
-  @Get('leads/closed')
-  getClosedLeads() {
-    return this.propertiesService.getClosedLeads();
-  }
-
-  // ================================
-  // 📜 ACTIVITY LOG
-  // ================================
-
-  // ⚠️ Must be before :id
   @Get(':id/activities')
-  getActivities(@Param('id') id: string) {
-    return this.propertiesService.getActivities(id);
-  }
-
-  // ================================
-  // 🧑‍💼 LEADS FOR A PROPERTY
-  // ================================
-
-  @Get('leads')
-  getAllLeads(@Query() query: any) {
-    return this.propertiesService.getAllLeads(query);
-  }
-
-
-  // List leads of a property
-  @Get(':id/leads')
-  getLeads(@Param('id') id: string) {
-    return this.propertiesService.getLeads(id);
-  }
-
-  // Create lead manually
-  @Post(':id/leads')
-  createLead(
+  getActivities(
+    @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() dto: CreateLeadDto,
   ) {
-    return this.propertiesService.createLead(id, dto);
+    return this.propertiesService.getActivities(user.workspaceId, id);
   }
 
-  // Update a lead (stage, follow-up, notes)
-  @Patch('leads/:leadId')
-  updateLeadById(
-    @Param('leadId') leadId: string,
-    @Body() dto: UpdateLeadDto,
-  ) {
-    return this.propertiesService.updateLead(leadId, dto);
-  }
-
-  // @Get('leads/followups-today')
-  // getTodayFollowups() {
-  //   return this.propertiesService.getFollowUpsToday();
-  // }
-
-  @Get('leads/followups-overdue')
-  getOverdueFollowups() {
-    return this.propertiesService.getOverdueFollowUps();
-  }
-
-  // ================================
-  // 🏠 PROPERTY CORE
-  // ================================
+  // ================================================================
+  // SINGLE PROPERTY
+  // ================================================================
 
   @Get(':id')
-  getOne(@Param('id') id: string) {
-    return this.propertiesService.getPropertyWithDistribution(id);
+  getOne(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.propertiesService.getPropertyWithDistribution(user.workspaceId, id);
   }
 
   @Get(':id/neighbors')
   getNeighbors(
+    @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Query() query: any,
   ) {
-    return this.propertiesService.getNeighbors(id, query);
+    return this.propertiesService.getNeighbors(user.workspaceId, id, query);
   }
 
-
-  @Post(':id/revert/:activityId')
-  revertToVersion(
-    @Param('id') id: string,
-    @Param('activityId') activityId: string,
-  ) {
-    return this.propertiesService.revertToActivity(id, activityId);
-  }
+  // ================================================================
+  // MUTATE
+  // ================================================================
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdatePropertyDto) {
-    return this.propertiesService.update(id, dto);
+  update(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: UpdatePropertyDto,
+  ) {
+    return this.propertiesService.update(user.workspaceId, id, dto);
   }
 
   @Patch(':id/status')
   updateStatus(
+    @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Body() dto: { status: PropertyStatus },
   ) {
-    return this.propertiesService.updateStatus(id, dto.status);
+    return this.propertiesService.updateStatus(user.workspaceId, id, dto.status);
   }
 
   @Delete(':id')
-  delete(@Param('id') id: string) {
-    return this.propertiesService.delete(id);
+  delete(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.propertiesService.delete(user.workspaceId, id);
   }
+
+  @Post(':id/revert/:activityId')
+  revertToVersion(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Param('activityId') activityId: string,
+  ) {
+    return this.propertiesService.revertToActivity(user.workspaceId, id, activityId);
+  }
+
+  // ================================================================
+  // SHARE
+  // ================================================================
 
   @Post(':id/share')
   shareProperty(
+    @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body()
-    body: {
-      platform: 'WHATSAPP';
-      clientName?: string;
-      clientPhone: string;
+    @Body() body: {
+      platform:      'WHATSAPP';
+      clientName?:   string;
+      clientPhone:   string;
       teamMemberIds: string[];
     },
   ) {
-    return this.propertiesService.shareProperty(id, body);
+    return this.propertiesService.shareProperty(user.workspaceId, id, body);
   }
 
+  // ================================================================
+  // MANUAL CREATION
+  // ================================================================
+
   @Post('manual')
-  createManual(@Body() body: any) {
-    return this.propertiesService.createManualProperty(body);
+  createManual(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: any,
+  ) {
+    return this.propertiesService.createManualProperty(user.workspaceId, body);
   }
+
+  // ================================================================
+  // AGENT LINKS
+  // ================================================================
 
   @Post(':id/agents/:agentId')
   attachAgent(
-    @Param('id') propertyId: string,
+    @CurrentUser() user: JwtPayload,
+    @Param('id') listingId: string,
     @Param('agentId') agentId: string,
   ) {
-    return this.propertiesService.attachAgent(propertyId, agentId);
-  }
-
-  @Post(':id/attach-agent')
-  attachAgentByPhone(
-    @Param('id') propertyId: string,
-    @Body('phone') phone: string,
-  ) {
-    console.log('BACKEND URL HIT');
-    console.log('PROPERTY ID:', propertyId);
-    console.log('PHONE:', phone);
-    return this.propertiesService.attachAgentByPhone(propertyId, phone);
+    return this.propertiesService.attachAgent(user.workspaceId, listingId, agentId);
   }
 
   @Delete(':id/agents/:agentId')
   detachAgent(
-    @Param('id') propertyId: string,
+    @CurrentUser() user: JwtPayload,
+    @Param('id') listingId: string,
     @Param('agentId') agentId: string,
   ) {
-    return this.propertiesService.detachAgent(propertyId, agentId);
+    return this.propertiesService.detachAgent(user.workspaceId, listingId, agentId);
   }
   
-
-
 }

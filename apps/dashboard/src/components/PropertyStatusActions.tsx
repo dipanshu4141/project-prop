@@ -34,40 +34,42 @@ export function PropertyStatusActions({
     },
   });
 
-  function ActionButton({
-    label,
-    newStatus,
-    variant,
-  }: {
-    label: string;
-    newStatus: string;
-    variant?: any;
-  }) {
-    return (
-      <Button
-        size="sm"
-        variant={variant}
-        disabled={mutation.isPending}
-        onClick={() => mutation.mutate(newStatus)}
-      >
-        {label}
-      </Button>
-    );
-  }
-
+  
   return (
     <div className="flex gap-2">
       {status !== "APPROVED" && (
-        <ActionButton label="✅ Approve" newStatus="APPROVED" />
+        <ActionButton label="✅ Approve" newStatus="APPROVED" mutation={mutation} />
       )}
 
       {status !== "REJECTED" && (
-        <ActionButton label="❌ Reject" newStatus="REJECTED" variant="destructive" />
+        <ActionButton label="❌ Reject" newStatus="REJECTED" variant="destructive" mutation={mutation} />
       )}
 
       {status !== "REVIEW" && (
-        <ActionButton label="🟡 Review" newStatus="REVIEW" variant="outline" />
+        <ActionButton label="🟡 Review" newStatus="REVIEW" variant="outline" mutation={mutation} />
       )}
     </div>
+  );
+}
+function ActionButton({
+  label,
+  newStatus,
+  variant,
+  mutation,
+}: {
+  label: string;
+  newStatus: string;
+  variant?: any;
+  mutation: any;
+}) {
+  return (
+    <Button
+      size="sm"
+      variant={variant}
+      disabled={mutation.isPending}
+      onClick={() => mutation.mutate(newStatus)}
+    >
+      {label}
+    </Button>
   );
 }

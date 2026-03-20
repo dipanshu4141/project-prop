@@ -1,0 +1,53 @@
+// ============================================================
+// SCHEMA CHANGE — apps/backend/prisma/schema.prisma
+// ============================================================
+// Add `clientStatus` field to the ClientProperty model.
+// The existing `status` field (LeadStage) is completely untouched.
+//
+// FIND this block in your schema:
+//
+//   model ClientProperty {
+//     ...
+//     status          LeadStage @default(NEW)
+//     ...
+//   }
+//
+// ADD the new field directly after `status`:
+//
+//   clientStatus    ClientPropertyStatus @default(PENDING)
+//
+// Final ClientProperty should look like:
+// ============================================================
+
+// model ClientProperty {
+//   id        String @id @default(uuid())
+//
+//   clientId  String
+//   client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+//
+//   listingId String
+//   listing   WorkspaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+//
+//   // Broker pipeline stage — unchanged
+//   status          LeadStage @default(NEW)
+//
+//   // Client's own preference — set via the public share portal
+//   clientStatus    ClientPropertyStatus @default(PENDING)   // ← ADD THIS LINE
+//
+//   sharedAt        DateTime  @default(now())
+//   followUpAt      DateTime?
+//   lastActionAt    DateTime?
+//   lastContactedAt DateTime?
+//   notes           String?
+//
+//   @@unique([clientId, listingId])
+//   @@index([clientId])
+//   @@index([listingId])
+//   @@index([followUpAt])
+// }
+
+// ============================================================
+// MIGRATION COMMAND (run from apps/backend/):
+//   npx prisma migrate dev --name add_client_property_clientstatus
+//   npx prisma generate
+// ============================================================

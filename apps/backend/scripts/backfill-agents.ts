@@ -1,4 +1,4 @@
-import { prisma } from "../src/prisma/prisma.client";
+import { prisma } from "../src/core/prisma/prisma.client";
 
 async function main() {
   console.log("🔄 Backfilling agent.propertyCount...");

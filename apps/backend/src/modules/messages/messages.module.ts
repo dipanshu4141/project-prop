@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { MessagesService } from "./messages.service";
-import { AiParserModule } from "../ai-parser/ai-parser.module";
+import { AiParserModule } from "../../ai/property-parser/ai-parser/ai-parser.module";
 import { PropertiesModule } from "../properties/properties.module";
 import { MessagesController } from "./messages.controller";
 

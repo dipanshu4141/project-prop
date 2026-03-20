@@ -6,9 +6,106 @@ datasource db {
   provider = "postgresql"
 }
 
-//////////////////////
-// ENUMS
-//////////////////////
+// ============================================================
+// ENUMS — PLATFORM / AUTH
+// ============================================================
+
+enum PlatformRole {
+  SUPERADMIN  // founder/CEO — full read/write on everything, all workspaces
+  SUPPORT     // service team — read + limited actions, impersonation logged
+  USER        // every broker / firm owner (default)
+}
+
+enum WorkspaceType {
+  INDIVIDUAL  // solo broker
+  FIRM        // multiple brokers under one account
+}
+
+enum MemberRole {
+  OWNER   // full access + billing + invite/remove
+  BROKER  // standard — own leads, properties, clients
+  VIEWER  // read-only
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  PAUSED
+}
+
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  WHATSAPP
+  PUSH
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+// ============================================================
+// ENUMS — PROPERTY DEDUPLICATION
+// ============================================================
+
+/// How confident the system is that two listings are the same real property.
+enum DuplicateConfidence {
+  LOW       // possible duplicate — needs human review
+  MEDIUM    // likely duplicate — auto-flagged, needs confirmation
+  HIGH      // almost certain — same agent phone + location + BHK
+  CONFIRMED // admin/system verified and merged
+}
+
+// ============================================================
+// ENUMS — DEAL / COMMISSION CHAIN
+// ============================================================
+
+enum DealStatus {
+  INITIATED     // someone started tracking a deal
+  NEGOTIATING   // price/terms being discussed
+  AGREED        // verbal/written agreement reached
+  COMPLETED     // money exchanged, deal done
+  FALLEN_THROUGH // deal collapsed
+  DISPUTED      // parties disagree
+}
+
+/// The role each firm plays in a deal chain.
+enum ChainRole {
+  ORIGINATOR    // firm that first listed this property on the platform
+  CO_LISTER     // another firm that also listed the same property
+  REFERRER      // firm that referred the client along the chain
+  CLOSER        // firm whose client actually signed / paid
+  PLATFORM      // your company's cut (auto-inserted for every deal)
+}
+
+enum CommissionStatus {
+  PENDING       // deal not yet closed
+  CONFIRMED     // deal closed, amounts agreed
+  PAID          // money transferred
+  DISPUTED      // firm contests their share
+  WAIVED        // firm voluntarily gave up their cut
+}
+
+// ============================================================
+// ENUMS — PROPERTY / CRM (unchanged from original)
+// ============================================================
 
 enum ListingType {
   RENT
@@ -50,20 +147,17 @@ enum PropertyStatus {
   REJECTED
 }
 
+enum ClientPropertyStatus {
+  PENDING         
+  INTERESTED
+  NOT_INTERESTED
+  SHORTLISTED
+}
+
 enum BrokerType {
   OWNER
   BROKER
   BUILDER
-}
-
-enum TenantPreference {
-  HINDU_ONLY
-  MUSLIM_ONLY
-  VEG_ONLY
-  NO_SMOKING
-  FAMILY_ONLY
-  BACHELORS_ALLOWED
-  COMPANY_LEASE_ONLY
 }
 
 enum TenantType {
@@ -74,8 +168,6 @@ enum TenantType {
   ANY
 }
 
-
-
 enum LeadStage {
   NEW
   CONTACTED
@@ -85,62 +177,274 @@ enum LeadStage {
   LOST
 }
 
+// ============================================================
+// PLATFORM — AUTH & WORKSPACE
+// ============================================================
 
-//////////////////////
-// MODELS
-//////////////////////
+model Workspace {
+  id        String        @id @default(uuid())
+  name      String
+  slug      String        @unique
+  type      WorkspaceType
 
-model PropertyActivity {
-  id         String   @id @default(uuid())
-  propertyId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  email     String?
+  phone     String?
+  city      String?
+  logoUrl   String?
 
-  action     String   // CREATED, UPDATED, APPROVED, REJECTED
-  oldData    Json?
-  newData    Json?
-  
-  createdAt  DateTime @default(now())
+  plan      String        @default("FREE")
+  isActive  Boolean       @default(true)
+  suspendedAt     DateTime?
+  suspendedReason String?
 
-  userId      String?
-  userName    String?
-  
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
-  @@index([propertyId])
+  members       WorkspaceMember[]
+  invites       WorkspaceInvite[]
+  subscription  Subscription?
+  invoices      Invoice[]
+  flagOverrides FeatureFlagOverride[]
 
+  shareTokens  ClientShareToken[]
+
+  // CRM data
+  messages   Message[]
+  listings   WorkspaceListing[]   // firm's view of properties
+  agents     Agent[]
+  clients    Client[]
+
+  // Deal chain participation
+  dealLinks  DealChainLink[]
+
+  @@index([type])
+  @@index([plan])
+  @@index([createdAt])
 }
 
-model Message {
-  id         String     @id @default(uuid())
-  groupName  String
-  messageKey String     @unique
-  rawText    String
-  receivedAt DateTime   @default(now())
-  properties Property[]
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String
+
+  name         String?
+  phone        String?
+  avatarUrl    String?
+
+  platformRole PlatformRole @default(USER)
+
+  emailVerified   Boolean   @default(false)
+  verifyToken     String?   @unique
+  verifyTokenExp  DateTime?
+
+  resetToken      String?   @unique
+  resetTokenExp   DateTime?
+
+  isActive        Boolean   @default(true)
+  deactivatedAt   DateTime?
+
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  memberships  WorkspaceMember[]
+  invitesSent  WorkspaceInvite[]     @relation("InvitedBy")
+  sessions     UserSession[]
+  notifications Notification[]
+  auditLogs    AuditLog[]
+  impersonationsPerformed ImpersonationLog[] @relation("AdminUser")
+  impersonationsReceived  ImpersonationLog[] @relation("TargetUser")
+
+  @@index([platformRole])
+  @@index([createdAt])
 }
 
-model Property {
-  id        String  @id @default(uuid())
-  messageId String
-  message   Message @relation(fields: [messageId], references: [id])
+model WorkspaceMember {
+  id          String     @id @default(uuid())
 
+  workspaceId String
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role        MemberRole @default(BROKER)
+  inviteId    String?
+
+  joinedAt     DateTime  @default(now())
+  lastActiveAt DateTime?
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model WorkspaceInvite {
+  id          String       @id @default(uuid())
+
+  workspaceId String
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  email       String
+  role        MemberRole   @default(BROKER)
+  token       String       @unique
+  status      InviteStatus @default(PENDING)
+
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+
+  invitedById String
+  invitedBy   User         @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  createdAt   DateTime     @default(now())
+
+  @@index([workspaceId])
+  @@index([token])
+  @@index([email])
+}
+
+model UserSession {
+  id           String   @id @default(uuid())
+
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  refreshToken String   @unique
+  userAgent    String?
+  ipAddress    String?
+  deviceName   String?
+
+  expiresAt    DateTime
+  revokedAt    DateTime?
+
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+
+model ClientShareToken {
+  id          String    @id @default(cuid())
+  token       String    @unique @default(uuid())
+  clientId    String
+  workspaceId String
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  viewedAt    DateTime?
+
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([workspaceId])
+}
+
+
+// ============================================================
+// CANONICAL PROPERTY — the real-world deduplication layer
+// ============================================================
+
+/// One record per real-world property, regardless of how many firms listed it.
+/// Admin sees this. Firms see WorkspaceListing (their scoped view).
+///
+/// Created automatically when:
+///   (a) First firm ingests a property — new CanonicalProperty created
+///   (b) Second firm ingests the same property — system detects duplicate,
+///       links their WorkspaceListing to the existing CanonicalProperty
+///       and flags it for admin review if confidence < HIGH
+model CanonicalProperty {
+  id          String  @id @default(uuid())
+
+  // The "fingerprint" used to detect duplicates.
+  // Computed from: normalised city + area + BHK + propertySubType + agentPhone(s)
+  // Two properties with the same fingerprint are very likely the same real property.
+  fingerprint String?  @unique
+
+  // Human-readable global reference — only visible to admins
+  // e.g. "MUM-APT-2024-00412"
+  globalRefCode String  @unique
+
+  // Verified by admin that this is truly a unique real-world property
+  verified        Boolean   @default(false)
+  verifiedAt      DateTime?
+  verifiedById    String?   // User.id of admin who verified
+
+  // The "master" listing — the one we trust most for canonical data display
+  // Usually the first listing, but admin can reassign
+  masterListingId String?   @unique
+
+  // How many times this property has been listed across all workspaces
+  listingCount    Int       @default(0)
+
+  // Aggregate deal data (updated on deal completion)
+  totalDealsCompleted Int   @default(0)
+  lastDealAt          DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  listings    WorkspaceListing[]
+  duplicateLinks DuplicateLink[]
+  deals       PropertyDeal[]
+
+  @@index([fingerprint])
+  @@index([verified])
+  @@index([createdAt])
+}
+
+/// A firm's scoped view of a property.
+/// Replaces the old Property model for workspace-level data.
+/// Each firm gets their own refCode, their own leads, notes, follow-ups.
+///
+/// refCode format: "{workspaceSlug}-{year}-{sequence}"
+/// e.g. "sharma-2024-0047" — Sharma Properties, 2024, listing #47
+model WorkspaceListing {
+  id          String @id @default(uuid())
+
+  // The global deduplicated property this listing refers to
+  canonicalPropertyId String
+  canonicalProperty   CanonicalProperty @relation(fields: [canonicalPropertyId], references: [id])
+
+  // The workspace (firm/broker) that created this listing
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Unique reference code scoped to this workspace
+  // Firms use this in their internal comms — admin maps it to globalRefCode
+  refCode     String   @unique   // "sharma-2024-0047"
+
+  // Which WhatsApp message this came from (if ingested via parsing)
+  messageId   String?
+  message     Message? @relation(fields: [messageId], references: [id])
+
+  // Which workspace member created/owns this listing
+  ownerId     String?  // User.id
+
+  // This workspace's role on this property
+  // ORIGINATOR = first to list it; CO_LISTER = listed it independently later
+  listingRole ChainRole @default(ORIGINATOR)
+
+  // Was this listing the one that started a deal chain?
+  isChainOrigin Boolean @default(false)
+
+  // Listing-specific data (may differ slightly per firm — e.g. different asking price)
   firmName        String?
   agentName       String?
   contacts        String[]
   senderContact   String?
   rawContactBlock String?
 
-  // 🏠 Listing classification
   listingType      ListingType?
   propertyCategory PropertyCategory?
   propertySubType  PropertySubType?
 
-  // 🌍 Location system
   country  String?
   city     String?
   area     String?
-  location String? // full raw address text
+  location String?
 
-  // 💰 Deal data
+  areaId   String?
+  areaRef  Area?   @relation(fields: [areaId], references: [id])
+
   price       BigInt?
   deposit     BigInt?
   bhk         String?
@@ -150,192 +454,637 @@ model Property {
   floor       Int?
   totalFloors Int?
 
-  // 🧠 Intelligence
   urgencyLevel  UrgencyLevel @default(NORMAL)
   negotiable    Boolean?
   availableFrom DateTime?
 
-  // 🧍 Preferences
   tenantTypes        TenantType[] @default([])
   tenantRestrictions String[]     @default([])
 
-  brokerType BrokerType?
+  brokerType  BrokerType?
 
-  // 🤖 AI + Admin
-  confidence   Float
-  status       PropertyStatus?
-  availability String
+  confidence  Float        @default(0)
+  status      PropertyStatus?
+  availability String       @default("AVAILABLE")
 
-  // 📊 SaaS tracking
-  sourceGroup     String?
-  duplicateOf     String?
-  converted       Boolean   @default(false)
+  sourceGroup  String?
+  duplicateOf  String?   // raw hint from ingestion, before dedup resolution
 
-  //📈 Lead Management
-  leadStage        LeadStage @default(NEW)
-  followUpAt       DateTime?
-  lastContactedAt  DateTime?
   notes String?
 
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
-  media     Media[]
 
-  activities PropertyActivity[]
-  shares    PropertyShare[]
-  propertyAgents PropertyAgent[]
+  media            Media[]
+  activities       ListingActivity[]
+  shares           PropertyShare[]
+  listingAgents    ListingAgent[]
   clientProperties ClientProperty[]
+
+  @@unique([workspaceId, canonicalPropertyId])  // one listing per workspace per real property
+  @@index([workspaceId])
+  @@index([canonicalPropertyId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, createdAt])
+  @@index([areaId])
 }
 
+/// Records when the system detects two WorkspaceListings are probably the same
+/// real-world property. Admin reviews and confirms/rejects.
+model DuplicateLink {
+  id          String @id @default(uuid())
+
+  canonicalPropertyId String
+  canonicalProperty   CanonicalProperty @relation(fields: [canonicalPropertyId], references: [id])
+
+  // The two listings suspected to be duplicates
+  listingAId  String
+  listingBId  String
+
+  confidence  DuplicateConfidence
+
+  // What signals triggered this detection
+  // e.g. ["same_agent_phone", "same_bhk_area", "same_price"]
+  matchReasons String[]
+
+  // Admin resolution
+  resolvedAt   DateTime?
+  resolvedById String?    // User.id
+  confirmed    Boolean?   // true = yes same property, false = no different property
+
+  createdAt   DateTime @default(now())
+
+  @@index([canonicalPropertyId])
+  @@index([listingAId])
+  @@index([listingBId])
+}
+
+// ============================================================
+// DEAL & COMMISSION CHAIN
+// ============================================================
+
+/// Created the moment any firm identifies a client who wants this property.
+/// The chain starts here and grows as more firms get involved.
+///
+/// Real-world example:
+///   Firm A listed the property (ORIGINATOR)
+///   Firm C referred their client to Firm B (REFERRER)
+///   Firm B's client signed the deal (CLOSER)
+///   Your platform matched them (PLATFORM — auto-inserted)
+model PropertyDeal {
+  id          String     @id @default(uuid())
+
+  canonicalPropertyId String
+  canonicalProperty   CanonicalProperty @relation(fields: [canonicalPropertyId], references: [id])
+
+  // The WorkspaceListing of the firm that STARTED this deal (the closer)
+  initiatorListingId  String
+  // The client who is buying/renting
+  clientId            String?   // Client.id from whichever workspace found them
+
+  status      DealStatus @default(INITIATED)
+
+  // Deal financials
+  dealValue        BigInt?    // final agreed price in paise
+  totalCommission  BigInt?    // total commission pool in paise
+  commissionRate   Float?     // e.g. 2.0 for 2%
+
+  // Timeline
+  initiatedAt  DateTime  @default(now())
+  agreedAt     DateTime?
+  completedAt  DateTime?
+  fallenAt     DateTime?
+
+  notes        String?
+
+  // The ordered chain of firms involved — see DealChainLink
+  chain        DealChainLink[]
+  commissions  CommissionSplit[]
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([canonicalPropertyId])
+  @@index([status])
+  @@index([initiatedAt])
+}
+
+/// One link per firm in the deal chain.
+/// The chain is ordered by `position` — position 1 is always the ORIGINATOR.
+/// Your platform is auto-inserted at position 0 (or last, depending on convention).
+///
+/// Example chain for a 3-firm deal:
+///   pos 0 — PLATFORM   (your company, always present)
+///   pos 1 — ORIGINATOR (Firm A listed the property)
+///   pos 2 — REFERRER   (Firm C referred client)
+///   pos 3 — CLOSER     (Firm B closed the deal)
+model DealChainLink {
+  id      String @id @default(uuid())
+
+  dealId  String
+  deal    PropertyDeal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  // Which of this workspace's listings is relevant to this deal
+  listingId   String?
+
+  role        ChainRole
+  position    Int        // 0 = platform, 1 = originator, 2+ = chain order
+
+  // When this firm joined the chain
+  joinedAt    DateTime   @default(now())
+  addedBy     String?    // User.id of who added this link (admin or firm owner)
+
+  notes       String?
+
+  commission  CommissionSplit?
+
+  @@unique([dealId, workspaceId])   // each firm can only appear once per deal
+  @@unique([dealId, position])      // positions must be unique per deal
+  @@index([dealId])
+  @@index([workspaceId])
+}
+
+/// The actual money split for one firm on one deal.
+/// Created when deal moves to AGREED or COMPLETED.
+model CommissionSplit {
+  id      String @id @default(uuid())
+
+  dealId  String
+  deal    PropertyDeal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  chainLinkId String @unique
+  chainLink   DealChainLink @relation(fields: [chainLinkId], references: [id], onDelete: Cascade)
+
+  workspaceId String
+
+  // The agreed split
+  percentage  Float     // e.g. 40.0 means 40% of total commission
+  amount      BigInt?   // computed: totalCommission * percentage / 100, in paise
+
+  status      CommissionStatus @default(PENDING)
+
+  // Payment tracking
+  invoiceRef  String?   // their invoice/bill number
+  paidAt      DateTime?
+  paidById    String?   // User.id of admin who marked it paid
+
+  notes       String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([dealId])
+  @@index([workspaceId])
+  @@index([status])
+}
+
+// ============================================================
+// AUDIT, IMPERSONATION, PLATFORM ADMIN
+// ============================================================
+
+model AuditLog {
+  id          String   @id @default(uuid())
+
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workspaceId String?
+
+  action      String   // PROPERTY_CREATED, DEAL_INITIATED, COMMISSION_PAID, LOGIN_FAILED
+  entity      String   // "WorkspaceListing", "PropertyDeal", "Client", "User"
+  entityId    String?
+
+  before      Json?
+  after       Json?
+
+  ipAddress   String?
+  userAgent   String?
+  requestId   String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model ImpersonationLog {
+  id                String   @id @default(uuid())
+
+  adminUserId       String
+  adminUser         User     @relation("AdminUser", fields: [adminUserId], references: [id])
+
+  targetUserId      String
+  targetUser        User     @relation("TargetUser", fields: [targetUserId], references: [id])
+
+  targetWorkspaceId String
+  reason            String?  // support ticket ID
+
+  startedAt         DateTime @default(now())
+  endedAt           DateTime?
+  ipAddress         String?
+
+  @@index([adminUserId])
+  @@index([targetUserId])
+  @@index([targetWorkspaceId])
+}
+
+// ============================================================
+// BILLING
+// ============================================================
+
+model Subscription {
+  id          String             @id @default(uuid())
+
+  workspaceId String             @unique
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  plan        String             // INDIVIDUAL | FIRM_5 | FIRM_20 | ENTERPRISE
+  status      SubscriptionStatus @default(TRIALING)
+  interval    BillingInterval    @default(MONTHLY)
+
+  gatewayCustomerId      String?
+  gatewaySubscriptionId  String?
+
+  seats            Int      @default(1)
+  seatsUsed        Int      @default(1)
+
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  trialEndsAt        DateTime?
+  cancelledAt        DateTime?
+  cancelReason       String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invoices    Invoice[]
+}
+
+model Invoice {
+  id              String   @id @default(uuid())
+
+  workspaceId     String
+  workspace       Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  subscriptionId  String?
+  subscription    Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  amount          Int       // paise
+  currency        String    @default("INR")
+  status          String    // PAID | UNPAID | VOID | REFUNDED
+
+  gatewayInvoiceId  String?
+  gatewayPaymentId  String?
+
+  paidAt          DateTime?
+  dueAt           DateTime?
+  periodStart     DateTime?
+  periodEnd       DateTime?
+
+  createdAt       DateTime @default(now())
+
+  @@index([workspaceId])
+}
+
+// ============================================================
+// FEATURE FLAGS
+// ============================================================
+
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  key         String   @unique  // "ai_valuation", "deal_chain", "bulk_export"
+  description String?
+  enabled     Boolean  @default(false)
+
+  overrides   FeatureFlagOverride[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model FeatureFlagOverride {
+  id          String      @id @default(uuid())
+
+  flagId      String
+  flag        FeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
+
+  workspaceId String
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  enabled     Boolean
+
+  @@unique([flagId, workspaceId])
+  @@index([workspaceId])
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+model Notification {
+  id          String              @id @default(uuid())
+
+  userId      String
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId String?
+  channel     NotificationChannel
+  status      NotificationStatus  @default(PENDING)
+
+  title       String
+  body        String
+  data        Json?
+  actionUrl   String?
+
+  sentAt      DateTime?
+  readAt      DateTime?
+  failedAt    DateTime?
+  failReason  String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, status])
+  @@index([workspaceId])
+  @@index([createdAt])
+}
+
+// ============================================================
+// USAGE / TELEMETRY
+// ============================================================
+
+model UsageEvent {
+  id          String   @id @default(uuid())
+
+  workspaceId String
+  userId      String?
+
+  event       String   // "listing.created", "deal.initiated", "commission.paid", "client.called"
+  properties  Json?
+
+  occurredAt  DateTime @default(now())
+
+  @@index([workspaceId, event])
+  @@index([workspaceId, occurredAt])
+  @@index([event, occurredAt])
+  @@index([userId, occurredAt])
+}
+
+// ============================================================
+// GEOGRAPHY
+// ============================================================
+
+model Area {
+  id      String   @id @default(uuid())
+  city    String
+  name    String
+  aliases String[]
+  lat     Float?
+  lng     Float?
+  pincode String?
+
+  listings WorkspaceListing[]
+
+  @@unique([city, name])
+  @@index([city])
+}
+
+// ============================================================
+// INGESTION & MESSAGES
+// ============================================================
+
+model Message {
+  id         String    @id @default(uuid())
+  groupName  String
+  messageKey String    @unique
+  rawText    String
+  receivedAt DateTime  @default(now())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  listings  WorkspaceListing[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, receivedAt])
+}
+
+model IngestionLog {
+  id          String   @id @default(uuid())
+  workspaceId String?
+  listingId   String?  // WorkspaceListing.id (was propertyId)
+
+  level       String   // INFO | WARN | ERROR
+  code        String   // PARSE_FAILED | DUPLICATE_DETECTED | NO_AGENT_FOUND
+  message     String
+  payload     Json?
+
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([listingId])
+  @@index([code])
+  @@index([createdAt])
+}
+
+model AgentMergeLog {
+  id          String   @id @default(uuid())
+  fromAgentId String
+  toAgentId   String
+  mergedBy    String
+  mergedAt    DateTime @default(now())
+  reason      String?
+}
+
+// ============================================================
+// AGENTS
+// ============================================================
+
+model Agent {
+  id          String @id @default(uuid())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  name        String?
+  firmName    String?
+  isMerged    Boolean  @default(false)
+
+  mergedFrom   Agent[]  @relation("AgentMerge")
+  mergedInto   Agent?   @relation("AgentMerge", fields: [mergedIntoId], references: [id])
+  mergedIntoId String?
+  mergedAt     DateTime?
+
+  phones         AgentPhone[]
+  listingAgents  ListingAgent[]
+  propertyCount  Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
+}
+
+model AgentPhone {
+  id      String @id @default(uuid())
+  phone   String
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([agentId, phone])
+  @@index([phone])  // fast lookup: "which agent owns this phone?"
+}
+
+model ListingAgent {
+  id        String @id @default(uuid())
+
+  listingId String
+  listing   WorkspaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  agentId   String
+  agent     Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, agentId])
+}
+
+// ============================================================
+// PROPERTY MEDIA & ACTIVITY
+// ============================================================
+
 model Media {
-  id         String   @id @default(uuid())
-  propertyId String
-  property   Property @relation(fields: [propertyId], references: [id])
-  url        String
-  type       String
+  id        String @id @default(uuid())
+  listingId String
+  listing   WorkspaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  url       String
+  type      String  // IMAGE | VIDEO | DOCUMENT
+}
+
+model ListingActivity {
+  id        String @id @default(uuid())
+
+  listingId String
+  listing   WorkspaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  action    String   // CREATED, UPDATED, APPROVED, DEAL_INITIATED, DUPLICATE_FLAGGED
+  oldData   Json?
+  newData   Json?
+
+  userId    String?
+  userName  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([listingId])
+  @@index([createdAt])
 }
 
 model PropertyShare {
-  id            String   @id @default(cuid())
-  propertyId    String
+  id        String @id @default(cuid())
+
+  listingId   String
+  listing     WorkspaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  workspaceId String
 
   platform      String   // WHATSAPP_DIRECT, WHATSAPP_GROUP, FACEBOOK, 99ACRES
   targetType    String   // PERSON, GROUP, PAGE, PORTAL
   targetName    String?
   targetContact String?
+  clientId      String?  // Client.id if recipient is a known client
 
-  // 🧠 LEAD FIELDS (THIS IS THE REAL CRM)
-  leadStage     LeadStage @default(NEW)
-  followUpAt    DateTime?
+  leadStage       LeadStage @default(NEW)
+  followUpAt      DateTime?
   lastContactedAt DateTime?
-  notes         String?
+  notes           String?
 
-  leadId        String?
-  sentAt        DateTime @default(now())
+  sentAt    DateTime @default(now())
 
-  property Property @relation(fields: [propertyId], references: [id])
+  @@index([workspaceId])
+  @@index([listingId])
 }
 
-model Agent {
-  id        String @id @default(uuid())
-
-  name      String?
-  firmName  String?
-  isMerged    Boolean  @default(false)
-
-  mergedFrom Agent[] @relation("AgentMerge")
-  mergedInto   Agent? @relation("AgentMerge", fields: [mergedIntoId], references: [id])
-  mergedIntoId String?
-  mergedAt    DateTime?
-
-  phones    AgentPhone[]
-  properties PropertyAgent[]
-  propertyCount   Int    @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-
-model AgentPhone {
-  id        String @id @default(uuid())
-
-  phone     String @unique
-
-  agentId  String
-  agent    Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-}
-
-
-model PropertyAgent {
-  id         String @id @default(uuid())
-
-  propertyId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-
-  agentId    String
-  agent      Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
-
-  @@unique([propertyId, agentId])
-}
-
-model IngestionLog {
-  id         String   @id @default(uuid())
-  propertyId String?
-
-  level      String   // INFO | WARN | ERROR
-  code       String   // e.g. NAME_CONFLICT, TOO_MANY_AGENTS, NO_AGENT_FOUND
-  message    String
-
-  payload    Json?
-
-  createdAt  DateTime @default(now())
-
-  @@index([propertyId])
-  @@index([code])
-}
-
-model AgentMergeLog {
-  id            String   @id @default(uuid())
-  fromAgentId   String
-  toAgentId     String
-  mergedBy      String
-  mergedAt      DateTime @default(now())
-  reason        String?
-}
-
-model TeamMember {
-  id        String   @id @default(uuid())
-  name      String
-  phone     String
-  createdAt DateTime @default(now())
-}
+// ============================================================
+// CLIENTS
+// ============================================================
 
 model Client {
-  id        String   @id @default(uuid())
-  name      String?
-  phone     String   @unique
+  id    String  @id @default(uuid())
+  name  String?
 
-  status    String   @default("ACTIVE") // ACTIVE | COLD | CLOSED
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  status    String   @default("ACTIVE")  // ACTIVE | COLD | CLOSED
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  properties ClientProperty[]
-  events     ClientEvent[]
+  phones      ClientPhone[]
+  properties  ClientProperty[]
+  events      ClientEvent[]
+
+  shareTokens  ClientShareToken[]
+
+  @@unique([workspaceId, id])
+  @@index([workspaceId])
+}
+
+model ClientPhone {
+  id      String @id @default(uuid())
+  phone   String
+  label   String?   // "personal", "office", "WhatsApp"
+  primary Boolean   @default(false)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([clientId, phone])
+  @@index([phone])
 }
 
 model ClientProperty {
-  id         String   @id @default(uuid())
+  id        String @id @default(uuid())
 
-  clientId   String
-  propertyId String
+  clientId  String
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  status     LeadStage @default(NEW)
-  sharedAt   DateTime  @default(now())
-  followUpAt    DateTime?   // ✅ ADD THIS
-  lastActionAt DateTime?
+  listingId String
+  listing   WorkspaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  // Lead tracking lives here — not on the listing
+  status          LeadStage @default(NEW)
+  clientStatus    ClientPropertyStatus @default(PENDING)
+  sharedAt        DateTime  @default(now())
+  followUpAt      DateTime?
+  lastActionAt    DateTime?
   lastContactedAt DateTime?
+  notes           String?
 
-  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-
-  @@unique([clientId, propertyId])
+  @@unique([clientId, listingId])
   @@index([clientId])
+  @@index([listingId])
+  @@index([followUpAt])
 }
 
 model ClientEvent {
-  id        String   @id @default(uuid())
-
-  clientId  String
-  type      String   // PROPERTY_SHARED, NOTE_ADDED, STATUS_CHANGED, MESSAGE_RECEIVED
-  metadata  Json?
+  id       String @id @default(uuid())
+  clientId String
+  type     String  // PROPERTY_SHARED, NOTE_ADDED, STATUS_CHANGED, CALLED, WHATSAPP_SENT
+  metadata Json?
 
   createdAt DateTime @default(now())
 
-  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+  @@index([clientId, createdAt])
 }

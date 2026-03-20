@@ -1,73 +1,113 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { API_BASE } from "@/lib/apiBase";
-
-
-// const API_BASE = process.env.NEXT_PUBLIC_API_URL!;
+import { Loader2, StickyNote } from "lucide-react";
+import { apiPost } from "@/lib/api";
 
 type Note = {
-  id: string;
-  note: string;
+  id:        string;
+  note:      string;
   createdAt: string;
 };
 
-export function ClientNotes({ clientId, notes }: { clientId: string; notes: Note[] }) {
-  const [text, setText] = useState("");
+function timeAgo(date: string) {
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1)  return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs}h ago`;
+  return new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+export function ClientNotes({
+  clientId,
+  notes: initialNotes,
+}: {
+  clientId: string;
+  notes:    Note[];
+}) {
+  const [notes,     setNotes]     = useState<Note[]>(initialNotes);
+  const [text,      setText]      = useState("");
   const [isPending, startTransition] = useTransition();
+  const [error,     setError]     = useState("");
 
   function saveNote() {
     if (!text.trim()) return;
-
+    setError("");
     startTransition(async () => {
-      await fetch(`${API_BASE}/clients/${clientId}/notes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note: text }),
-      });
-      setText("");
-      window.location.reload();
+      try {
+        await apiPost(`/clients/${clientId}/notes`, { note: text.trim() });
+        // Optimistic update — prepend the new note
+        setNotes((prev) => [
+          {
+            id:        crypto.randomUUID(),
+            note:      text.trim(),
+            createdAt: new Date().toISOString(),
+          },
+          ...prev,
+        ]);
+        setText("");
+      } catch (err: any) {
+        setError(err.message ?? "Failed to save note");
+      }
     });
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      saveNote();
+    }
   }
 
   return (
     <div className="space-y-4">
       {/* Input */}
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Write a quick note…"
-        className="w-full resize-none rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1"
-        rows={3}
-      />
-
-      <div className="flex justify-end">
-        <button
-          onClick={saveNote}
-          disabled={isPending}
-          className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
-        >
-          Save
-        </button>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden focus-within:bg-white focus-within:border-slate-400 transition-colors">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Write a quick note… (⌘+Enter to save)"
+          rows={3}
+          className="w-full resize-none bg-transparent px-3 pt-3 text-[13px] text-slate-800 placeholder:text-slate-400 focus:outline-none"
+        />
+        <div className="flex items-center justify-between px-3 py-2 border-t border-slate-100">
+          <p className="text-[11px] text-slate-400">⌘+Enter to save</p>
+          <button
+            onClick={saveNote}
+            disabled={isPending || !text.trim()}
+            className="flex items-center gap-1.5 h-7 px-3 rounded-lg bg-[#0B1F14] text-[12px] font-semibold text-white hover:bg-[#1A3525] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+            Save
+          </button>
+        </div>
       </div>
 
-      {/* Notes */}
-      <div className="space-y-3">
-        {notes.length === 0 ? (
-          <div className="text-sm text-muted-foreground">
-            No notes yet
-          </div>
-        ) : (
-          notes.map((n) => (
-            <div key={n.id} className="text-sm">
-              <div>{n.note}</div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {new Date(n.createdAt).toLocaleString()}
-              </div>
+      {error && (
+        <p className="text-[12px] text-red-600">{error}</p>
+      )}
+
+      {/* Notes list */}
+      {notes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-6 text-center">
+          <StickyNote className="h-6 w-6 text-slate-300 mb-2" />
+          <p className="text-[12.5px] text-slate-500">No notes yet</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {notes.map((n) => (
+            <div key={n.id} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+              <p className="text-[13px] text-slate-800 leading-relaxed whitespace-pre-wrap">
+                {n.note}
+              </p>
+              <p className="mt-1.5 text-[11px] text-slate-400">{timeAgo(n.createdAt)}</p>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

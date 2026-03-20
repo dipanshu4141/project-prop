@@ -1,26 +1,40 @@
-// import { Module } from '@nestjs/common';
-// import { AppController } from './app.controller';
-// import { AppService } from './app.service';
-
-// @Module({
-//   imports: [],
-//   controllers: [AppController],
-//   providers: [AppService],
-// })
-// export class AppModule {}
-
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import * as path from 'path';
+
+import { PrismaModule }     from './core/prisma/prisma.module';
+import { AuthModule }       from './auth/auth.module';
+import { AdminModule }      from './modules/admin/admin.module';
+import { BillingModule }    from './modules/billing/billing.module';
+import { MessagesModule }   from './modules/messages/messages.module';
 import { PropertiesModule } from './modules/properties/properties.module';
-import { TeamModule } from './modules/team/team.module';
-import { PrismaModule } from './core/prisma/prisma.module';
-import { AppController } from './app.controller';
-import { WhatsappModule } from './ingestion/whatsapp/whatsapp.module';
-import { MessagesModule } from './modules/messages/messages.module';
-import { AgentsModule } from './modules/agents/agents.module';
-import { ClientsModule } from './modules/clients/clients.module';
+import { AgentsModule }     from './modules/agents/agents.module';
+import { ClientsModule }    from './modules/clients/clients.module';
+import { TeamModule }       from './modules/team/team.module';
+import { WhatsappModule }   from './ingestion/whatsapp/whatsapp.module';
+import { AppController }    from './app.controller';
+import { PublicModule } from './modules/public/public.module';  
 
 @Module({
-  imports: [PrismaModule , MessagesModule, PropertiesModule, AgentsModule, WhatsappModule, TeamModule, ClientsModule],
+  imports: [
+    // Loads apps/backend/.env regardless of where the process is started from
+    ConfigModule.forRoot({
+      isGlobal:    true,
+      envFilePath: path.resolve(__dirname, '../../.env'),
+    }),
+
+    PrismaModule,
+    AuthModule,
+    AdminModule,
+    BillingModule,
+    MessagesModule,
+    PropertiesModule,
+    AgentsModule,
+    ClientsModule,
+    TeamModule,
+    WhatsappModule,
+    PublicModule,
+  ],
   controllers: [AppController],
 })
 export class AppModule {}

@@ -4,9 +4,12 @@ import makeWASocket, {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
 } from '@whiskeysockets/baileys';
-import * as qrcode from 'qrcode-terminal';
+// import * as qrcode from 'qrcode-terminal';
 import { Boom } from '@hapi/boom';
 import { MessagesService } from '../../modules/messages/messages.service';
+// import * as QRCode from 'qrcode';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class WhatsappService implements OnModuleInit {
@@ -26,7 +29,7 @@ export class WhatsappService implements OnModuleInit {
     this.sock = makeWASocket({
       version,
       auth: state,
-      printQRInTerminal: true,
+      syncFullHistory: false, // 🔥 IMPORTANT (prevents old message decrypt issues)
     });
 
     this.sock.ev.on('creds.update', saveCreds);
@@ -34,24 +37,33 @@ export class WhatsappService implements OnModuleInit {
     this.sock.ev.on('connection.update', (update) => {
       const { connection, lastDisconnect, qr } = update;
 
+      // ✅ QR handling (NEW way)
       if (qr) {
-        qrcode.generate(qr, { small: true });
+        console.log('QR RECEIVED:', qr);
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`;
+console.log('QR RECEIVED:', qr);
+        this.logger.log('📲 Scan QR from browser:');
+        this.logger.log(qrUrl);
+
+        // Auto open in browser (Mac)
+        const open = require('child_process').exec;
+        open(`open "${qrUrl}"`);
       }
 
       if (connection === 'close') {
         const reason = (lastDisconnect?.error as Boom)?.output?.statusCode;
         this.logger.warn(`Disconnected: ${reason}`);
 
-        if (reason !== DisconnectReason.loggedOut) {
-          this.logger.warn('Reconnecting to WhatsApp...');
-          this.start();
+        if (reason === DisconnectReason.loggedOut) {
+          this.logger.error('Logged out from WhatsApp. Please scan QR again.');
         } else {
-          this.logger.error('Logged out from WhatsApp.');
+          this.logger.warn('Reconnecting to WhatsApp in 3s...');
+          setTimeout(() => this.start(), 3000); // ✅ safe reconnect
         }
       }
 
       if (connection === 'open') {
-        this.logger.log('WhatsApp connected!');
+        this.logger.log('✅ WhatsApp connected!');
       }
     });
 
@@ -92,16 +104,11 @@ export class WhatsappService implements OnModuleInit {
         }
         // Case 2: GROUP CHAT
         else {
-          // LID mode group
           if (key.addressingMode === 'lid' && key.participantAlt) {
             senderJidRaw = key.participantAlt;
-          }
-          // Normal group mode
-          else if (key.participant && key.participant.length > 0) {
+          } else if (key.participant && key.participant.length > 0) {
             senderJidRaw = key.participant;
-          }
-          // Fallback
-          else if ((msg as any).participant) {
+          } else if ((msg as any).participant) {
             senderJidRaw = (msg as any).participant;
           }
         }
@@ -120,18 +127,23 @@ export class WhatsappService implements OnModuleInit {
           }
         }
 
-        this.logger.warn(`FINAL SENDER RAW = ${senderJidRaw}`);
-        this.logger.warn(`FINAL SENDER CLEAN = ${sender}`);
+        this.logger.debug(`Sender RAW = ${senderJidRaw}`);
+        this.logger.debug(`Sender CLEAN = ${sender}`);
 
         // -------- Send to pipeline --------
         await this.messagesService.handleIncomingMessage({
+          workspaceId:
+            process.env.DEFAULT_WORKSPACE_ID ?? "9d8f5f71-2c31-4e3a-8fa2-accadd507984",
           groupId,
           messageKey,
           text,
           sender: sender || undefined,
         });
       } catch (err) {
-        this.logger.error('Error processing incoming WhatsApp message', err);
+        this.logger.error(
+          'Error processing incoming WhatsApp message',
+          err,
+        );
       }
     });
   }

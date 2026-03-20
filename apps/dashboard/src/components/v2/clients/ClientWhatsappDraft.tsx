@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MessageCircle, Copy } from "lucide-react";
-import { API_BASE } from "@/lib/apiBase";
-
-
-// const API_BASE = process.env.NEXT_PUBLIC_API_URL!;
+import { MessageCircle, Copy, CheckCircle2, Loader2 } from "lucide-react";
+import { apiGet } from "@/lib/api";
 
 export function ClientWhatsappDraft({
   clientPropertyId,
@@ -15,38 +12,70 @@ export function ClientWhatsappDraft({
   phone: string;
 }) {
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [copied,  setCopied]  = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/clients/client-property/${clientPropertyId}/whatsapp-draft`)
-      .then((r) => r.json())
-      .then((d) => setMessage(d.message));
+    apiGet<{ message: string }>(
+      `/clients/client-property/${clientPropertyId}/whatsapp-draft`
+    )
+      .then((d) => setMessage(d.message ?? ""))
+      .catch(() => setMessage(""))
+      .finally(() => setLoading(false));
   }, [clientPropertyId]);
 
-  if (!message) return null;
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-1 text-[12px] text-slate-400">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Loading draft…
+      </div>
+    );
+  }
 
-  const encoded = encodeURIComponent(message);
+  if (!message) {
+    return (
+      <p className="text-[12px] text-slate-400">No draft available.</p>
+    );
+  }
+
+  const cleanPhone = (phone ?? "").replace(/\D/g, "");
+const intlPhone  = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
+const waUrl      = cleanPhone.length >= 10
+  ? `https://api.whatsapp.com/send/?phone=${intlPhone}&text=${encodeURIComponent(message)}`
+  : null;
+
+  async function copy() {
+    await navigator.clipboard.writeText(message);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   return (
-    <div className="mt-3 rounded-lg border bg-muted p-3 text-sm">
-      <div className="mb-2 font-medium">WhatsApp draft</div>
+    <div className="space-y-2">
+      {/* Message text */}
+      <pre className="whitespace-pre-wrap text-[12px] leading-relaxed text-slate-700 font-sans">
+        {message}
+      </pre>
 
-      <div className="text-muted-foreground">{message}</div>
-
-      <div className="mt-2 flex gap-2">
+      {/* Actions */}
+      <div className="flex items-center gap-2">
         <button
-          onClick={() => navigator.clipboard.writeText(message)}
-          className="inline-flex items-center gap-1 text-xs"
+          onClick={copy}
+          className="flex items-center gap-1.5 text-[11.5px] font-medium text-slate-500 hover:text-slate-800 transition-colors"
         >
-          <Copy className="h-3 w-3" /> Copy
+          {copied
+            ? <><CheckCircle2 className="h-3 w-3 text-emerald-500" /> Copied</>
+            : <><Copy className="h-3 w-3" /> Copy</>
+          }
         </button>
+        <span className="text-slate-300">·</span>
 
-        <a
-          href={`https://wa.me/${phone}?text=${encoded}`}
-          target="_blank"
-          className="inline-flex items-center gap-1 text-xs text-green-600"
-        >
-          <MessageCircle className="h-3 w-3" /> WhatsApp
-        </a>
+        {waUrl && (
+          <a href={waUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[11.5px] font-medium text-[#25D366] hover:text-[#1fb855] transition-colors">
+            Open in WhatsApp
+          </a>
+        )}
       </div>
     </div>
   );
