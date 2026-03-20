@@ -21,9 +21,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       <body className="h-full">
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <Providers> 
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </Providers> 
       </body>
     </html>
   );
