@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from 'react';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -8,7 +9,9 @@ import { apiPost } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { AuthUser, AuthWorkspace } from '@/context/AuthContext';
 
-export default function LoginPage() {
+// ── Inner component (uses useSearchParams — must be inside Suspense) ──────────
+
+function LoginForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { login }    = useAuth();
@@ -32,7 +35,6 @@ export default function LoginPage() {
 
       login(data.user, data.workspace);
 
-      // Go back to where they were, or to the dashboard
       const from = searchParams.get('from') ?? '/v2/dashboard';
       router.replace(from);
     } catch (err: any) {
@@ -69,8 +71,6 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-
-            {/* Email */}
             <div>
               <label className="block text-[12.5px] font-semibold text-slate-600 mb-1.5">
                 Email address
@@ -85,7 +85,6 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Password */}
             <div>
               <label className="block text-[12.5px] font-semibold text-slate-600 mb-1.5">
                 Password
@@ -108,13 +107,12 @@ export default function LoginPage() {
                 </button>
               </div>
               <div className="mt-1.5 text-right">
-                <Link href="/forgot-password" className="text-[12px] text-slateald-500 hover:text-slate-700 transition-colors">
+                <Link href="/forgot-password" className="text-[12px] text-slate-500 hover:text-slate-700 transition-colors">
                   Forgot password?
                 </Link>
               </div>
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -134,5 +132,15 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+// ── Page export — wraps LoginForm in Suspense ─────────────────────────────────
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }
