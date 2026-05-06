@@ -45,7 +45,10 @@ export default function ClientPropertiesGrid({
 
         return (
           <div key={cp.id} className="py-3.5 first:pt-0 last:pb-0">
-            <div className="flex items-center justify-between gap-3 sm:gap-4">
+            <div
+              className="flex items-center justify-between gap-3 sm:gap-4 cursor-pointer"
+              onClick={() => router.push(`/v2/properties/${prop.id}`)}
+            >
               {/* Left */}
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[11px]">

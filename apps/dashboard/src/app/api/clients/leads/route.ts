@@ -4,7 +4,7 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
 
 export async function GET() {
   try {
-    const res = await fetch(`${BACKEND_URL}/clients/leads`, {
+    const res = await fetch(`${BACKEND_URL}/api/clients/leads`, {
       cache: "no-store",
     });
 

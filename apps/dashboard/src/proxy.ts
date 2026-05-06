@@ -8,10 +8,11 @@ import type { NextRequest } from 'next/server';
 const PUBLIC_PATHS = [
   '/login',
   '/register',
-  '/share',          // ← client-facing property sharing portal
+  '/share',           // ← client-facing property sharing portal
+  '/onboarding',      // ← plan selection + team invite after register
   '/forgot-password',
   '/reset-password',
-  '/invites/accept'
+  '/invites/accept',
 ];
 
 export function proxy(request: NextRequest) {

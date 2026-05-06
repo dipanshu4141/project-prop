@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.BACKEND_URL!;
 
-export async function GET(
-  req: Request,
+export async function GET(req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -13,7 +12,7 @@ export async function GET(
     const query = url.searchParams.toString();
 
     const res = await fetch(
-      `${BACKEND_URL}/properties/${id}/neighbors?${query}`,
+      `${BACKEND_URL}/api/properties/${id}/neighbors?${query}`,
       {
         cache: "no-store",
         headers: {

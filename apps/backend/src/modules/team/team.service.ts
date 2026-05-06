@@ -9,6 +9,7 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { EmailService } from './email.service';
 import { MemberRole } from '@prisma/client';
 
+
 @Injectable()
 export class TeamService {
   constructor(
@@ -139,7 +140,7 @@ export class TeamService {
         role,
         token,
         status:      'PENDING',
-        expiresAt:   new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expiresAt:   new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         invitedById,
       },
     });
@@ -271,6 +272,13 @@ export class TeamService {
       });
     });
 
+    await this.email.sendWelcome({
+      to:            user.email,
+      name:          user.name ?? user.email,
+      workspaceName: invite.workspace.name,
+      dashboardUrl:  `${process.env.FRONTEND_URL}/v2/dashboard`,
+    });
+
     return {
       workspaceId:   invite.workspaceId,
       workspaceName: invite.workspace.name,
@@ -370,4 +378,48 @@ export class TeamService {
 
     return { success: true };
   }
+
+  // ================================================================
+// ADD THIS METHOD to your TeamService class
+// apps/backend/src/modules/team/team.service.ts
+// ================================================================
+
+// Also add to imports at top if not already present:
+//   import { NotFoundException } from '@nestjs/common';
+
+// PATCH: apps/backend/src/modules/team/team.service.ts
+// Only resendInvite() needs changes. Replace the method body with this:
+
+async resendInvite(workspaceId: string, inviteId: string) {
+  const invite = await this.prisma.workspaceInvite.findFirst({
+    where: { id: inviteId, workspaceId, status: 'PENDING' },
+    include: {
+      workspace: { select: { name: true } },
+      invitedBy: { select: { name: true, email: true } },
+    },
+  });
+
+  if (!invite) throw new NotFoundException('Invite not found or already accepted');
+
+  // Reset expiry to 7 days from now
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
+  await this.prisma.workspaceInvite.update({
+    where: { id: inviteId },
+    data:  { expiresAt },
+  });
+
+  const inviteUrl = `${process.env.FRONTEND_URL}/invites/accept?token=${invite.token}`;
+
+  await this.email.sendWorkspaceInvite({
+    to:            invite.email,
+    invitedBy:     invite.invitedBy?.name ?? invite.invitedBy?.email ?? 'Your team',
+    workspaceName: invite.workspace.name,
+    role:          invite.role,
+    inviteUrl,
+  });
+
+  return { success: true, email: invite.email };
+}
 }

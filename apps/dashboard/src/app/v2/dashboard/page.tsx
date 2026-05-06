@@ -475,6 +475,9 @@
 import Link from "next/link";
 import { PageContainer } from "@/components/v2/layout/PageContainer";
 import { PageHeader } from "@/components/v2/layout/PageHeader";
+
+import { redirect }  from 'next/navigation';
+import { cookies }   from 'next/headers';
 import {
   Users,
   CheckCircle,
@@ -483,6 +486,8 @@ import {
   AlertCircle,
   Calendar,
   ChevronRight,
+  Handshake,
+  Radio,
 } from "lucide-react";
 import { serverGet } from "@/lib/serverApi";
 
@@ -502,6 +507,14 @@ type FollowUpItem = {
   };
 };
 
+type DashboardStats = {
+  totalClients: number;
+  activeClients: number;
+  listingsThisMonth: number;
+  dealsInProgress: number;
+  commissionThisMonth: number;
+};
+
 /* ------------------------------------------------------------------ */
 /* DATA                                                                */
 /* ------------------------------------------------------------------ */
@@ -511,6 +524,20 @@ async function fetchFollowUps(path: string): Promise<FollowUpItem[]> {
     return await serverGet<FollowUpItem[]>(path);
   } catch {
     return [];
+  }
+}
+
+async function fetchStats(): Promise<DashboardStats> {
+  try {
+    return await serverGet<DashboardStats>('/dashboard/stats');
+  } catch {
+    return {
+      totalClients: 0,
+      activeClients: 0,
+      listingsThisMonth: 0,
+      dealsInProgress: 0,
+      commissionThisMonth: 0,
+    };
   }
 }
 
@@ -530,6 +557,12 @@ function formatFollowUpDate(iso: string) {
   });
 }
 
+function fmtRupees(n: number): string {
+  if (n >= 10_00_000) return `₹${(n / 10_00_000).toFixed(1)}L`;
+  if (n >= 1_000)     return `₹${(n / 1_000).toFixed(0)}K`;
+  return `₹${n}`;
+}
+
 /* ------------------------------------------------------------------ */
 /* STAT CARD — Safari-safe static colour map                          */
 /* ------------------------------------------------------------------ */
@@ -544,13 +577,13 @@ const ACCENT: Record<AccentKey, { iconBg: string; iconText: string; circleBg: st
 };
 
 function StatCard({
-  title, value, footer, icon: Icon, accent,
+  title, value, footer, icon: Icon, accent, href,
 }: {
   title: string; value: string; footer: string;
-  icon: React.ElementType; accent: AccentKey;
+  icon: React.ElementType; accent: AccentKey; href?: string;
 }) {
   const a = ACCENT[accent];
-  return (
+  const inner = (
     <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 md:p-5 overflow-hidden relative">
       <div className={`absolute -right-4 -top-4 h-20 w-20 rounded-full opacity-10 ${a.circleBg}`} />
 
@@ -577,6 +610,8 @@ function StatCard({
       <p className="hidden md:block mt-2 text-[11px] text-slate-400">{footer}</p>
     </div>
   );
+
+  return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
 /* ------------------------------------------------------------------ */
@@ -663,10 +698,11 @@ function UpcomingRow({ item }: { item: FollowUpItem }) {
 
 function SectionCard({
   icon, title, badge, badgeRed, children, emptyEmoji, emptyTitle, emptySubtitle, isEmpty,
+  headerAction,
 }: {
   icon: React.ReactNode; title: string; badge?: number; badgeRed?: boolean;
   children: React.ReactNode; emptyEmoji: string; emptyTitle: string;
-  emptySubtitle: string; isEmpty: boolean;
+  emptySubtitle: string; isEmpty: boolean; headerAction?: React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
@@ -681,6 +717,7 @@ function SectionCard({
             {badge}
           </span>
         )}
+        {headerAction && <div className="ml-auto">{headerAction}</div>}
       </div>
       <div className="px-4 lg:px-5 py-4">
         {isEmpty ? (
@@ -702,13 +739,32 @@ function SectionCard({
 /* ------------------------------------------------------------------ */
 
 export default async function DashboardPage() {
-  const [today, upcoming] = await Promise.all([
+  const [today, upcoming, stats] = await Promise.all([
     fetchFollowUps("/clients/follow-ups/today"),
     fetchFollowUps("/clients/follow-ups/upcoming"),
+    fetchStats(),
   ]);
+
+  // Check if user has a workspace — if not, send to onboarding
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('access_token')?.value;
+    if (token) {
+      const res = await fetch(
+        `${process.env.BACKEND_URL}/api/onboarding/status`,
+        { headers: { cookie: `access_token=${token}` }, cache: 'no-store' }
+      );
+      if (res.ok) {
+        const status = await res.json();
+        if (!status.hasWorkspace) redirect('/onboarding');
+      }
+    }
+  } catch {}
 
   const todayDate = new Date();
   todayDate.setHours(0, 0, 0, 0);
+
+  const currentMonth = new Date().toLocaleString('en-IN', { month: 'long' });
 
   return (
     <PageContainer className="bg-[#F7F5F0]">
@@ -716,11 +772,66 @@ export default async function DashboardPage() {
 
       {/* ── STATS: 2-col mobile → 4-col desktop ── */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-        <StatCard title="Total Leads"  value="0"  footer="All time"       icon={Users}       accent="sky"     />
-        <StatCard title="Active Leads" value="0"  footer="Open right now" icon={Clock}       accent="amber"   />
-        <StatCard title="Closed"       value="0"  footer="This month"     icon={CheckCircle} accent="emerald" />
-        <StatCard title="Revenue"      value="₹0" footer="This month"     icon={IndianRupee} accent="violet"  />
+        <StatCard
+          title="Total Clients"
+          value={String(stats.totalClients)}
+          footer="All time"
+          icon={Users}
+          accent="sky"
+          href="/v2/clients"
+        />
+        <StatCard
+          title="Active Clients"
+          value={String(stats.activeClients)}
+          footer="Open pipeline"
+          icon={Clock}
+          accent="amber"
+          href="/v2/clients"
+        />
+        <StatCard
+          title="Deals in Progress"
+          value={String(stats.dealsInProgress)}
+          footer="Not yet closed"
+          icon={CheckCircle}
+          accent="emerald"
+          href="/v2/deals"
+        />
+        <StatCard
+          title="Commission"
+          value={stats.commissionThisMonth > 0 ? fmtRupees(stats.commissionThisMonth) : '₹0'}
+          footer={`${currentMonth} (completed deals)`}
+          icon={IndianRupee}
+          accent="violet"
+          href="/v2/deals"
+        />
       </div>
+
+      {/* TO — show groups nudge when no listings yet: */}
+      {stats.listingsThisMonth > 0 ? (
+        <Link href="/v2/properties">
+          <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 hover:bg-emerald-100 transition-colors">
+            <p className="text-[13px] text-emerald-800 font-medium">
+              <span className="font-bold">{stats.listingsThisMonth}</span> new listing{stats.listingsThisMonth !== 1 ? 's' : ''} added in {currentMonth}
+            </p>
+            <ChevronRight className="h-4 w-4 text-emerald-500" />
+          </div>
+        </Link>
+      ) : (
+        <Link href="/v2/groups">
+          <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 hover:bg-emerald-100 transition-colors group">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 border border-emerald-200 flex-shrink-0">
+                <Radio className="h-4 w-4 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-[13px] font-semibold text-emerald-800">Subscribe to WhatsApp groups to get started</p>
+                <p className="text-xs text-emerald-600 mt-0.5">Listings from subscribed groups appear here automatically</p>
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+          </div>
+        </Link>
+      )}
 
       {/* ── FOLLOW-UPS: stacked mobile → 3-col desktop ── */}
       <div className="mt-4 lg:mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
@@ -743,7 +854,7 @@ export default async function DashboardPage() {
           </SectionCard>
         </div>
 
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-4">
           <SectionCard
             icon={<Calendar className="h-3.5 w-3.5 text-emerald-500" />}
             title="Upcoming · 7 days"
@@ -755,6 +866,26 @@ export default async function DashboardPage() {
           >
             {upcoming.map((f, i) => <UpcomingRow key={i} item={f} />)}
           </SectionCard>
+
+          {/* Deals quick-link — only shown when there are active deals */}
+          {stats.dealsInProgress > 0 && (
+            <Link href="/v2/deals">
+              <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] px-4 lg:px-5 py-4 flex items-center justify-between hover:border-emerald-200 transition-colors group">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100">
+                    <Handshake className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-semibold text-slate-800">
+                      {stats.dealsInProgress} deal{stats.dealsInProgress !== 1 ? 's' : ''} in progress
+                    </p>
+                    <p className="text-[11px] text-slate-400">Tap to view deal pipeline</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-emerald-500 transition-colors" />
+              </div>
+            </Link>
+          )}
         </div>
 
       </div>

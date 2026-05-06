@@ -140,7 +140,7 @@ function AcceptInviteForm() {
                 <div className="mb-4 rounded-lg bg-slate-50 border border-slate-200 px-4 py-3">
                   <p className="text-[12.5px] text-slate-700">
                     You need to{" "}
-                    <Link href={`/register?email=${encodeURIComponent(invite.email)}&from=/invites/accept?token=${token}`}
+                    <Link href={`/register?inviteToken=${token}&email=${encodeURIComponent(invite.email)}`}
                       className="font-semibold text-emerald-700 hover:underline">
                       create an account
                     </Link>

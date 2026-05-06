@@ -2,16 +2,15 @@ import { NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.BACKEND_URL!;
 
-export async function GET(
-  _req: Request,
+export async function GET(req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await context.params;
 
     const res = await fetch(
-      `${BACKEND_URL}/clients/client-property/${id}/whatsapp-draft`,
-      { cache: "no-store" }
+      `${BACKEND_URL}/api/clients/client-property/${id}/whatsapp-draft`,
+      { cache: "no-store", headers: { cookie: req.headers.get("cookie") ?? "", authorization: req.headers.get("authorization") ?? "" } }
     );
 
     if (!res.ok) {

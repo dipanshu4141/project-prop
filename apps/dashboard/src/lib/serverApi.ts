@@ -1,53 +1,89 @@
-/**
- * apps/dashboard/src/lib/serverApi.ts
- *
- * Used by Next.js SERVER COMPONENTS only.
- * Reads the access_token cookie from the incoming request and
- * forwards it as a Bearer header so the NestJS backend can
- * authenticate the call.
- *
- * Never import this in "use client" components — use lib/api.ts instead.
- */
+// apps/dashboard/src/lib/serverApi.ts
+//
+// Server-side fetch utility for Next.js Server Components.
+//
+// Calls through the Next.js proxy routes (/api/admin/...) rather than
+// hitting NestJS directly. The proxy forwards the cookie to NestJS.
+// This is consistent with how every other backend call works in this project.
 
 import { cookies } from 'next/headers';
 
-const API_BASE = process.env.API_URL ?? 'http://localhost:3000/api';
+// Internal Next.js base URL — server calling its own proxy routes
+const NEXT_BASE =
+  process.env.NEXTAUTH_URL ??
+  process.env.NEXT_PUBLIC_APP_URL ??
+  'http://localhost:3001';
 
-async function getAuthHeader(): Promise<Record<string, string>> {
-  const store = await cookies();
-  const token = store.get('access_token')?.value;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+/**
+ * GET from a server component.
+ * Calls /api/<path> on the Next.js server (which proxies to NestJS).
+ * Forwards the access_token cookie so the proxy can pass it to NestJS.
+ * Throws on non-2xx so callers can catch and call notFound() / redirect().
+ */
+export async function serverGet<T = unknown>(path: string): Promise<T> {
+  // path is e.g. "/admin/properties?limit=20"
+  // → becomes  "http://localhost:3000/api/admin/properties?limit=20"
+  const url = `${NEXT_BASE}/api${path}`;
 
-export async function serverGet<T>(path: string): Promise<T> {
-  const auth = await getAuthHeader();
+  // Read the incoming request's cookies so we can forward auth
+  const cookieStore = await cookies();
+  const allCookies  = cookieStore.getAll()
+    .map((c) => `${c.name}=${c.value}`)
+    .join('; ');
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(url, {
     method:  'GET',
-    headers: { 'Content-Type': 'application/json', ...auth },
-    cache:   'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(allCookies ? { cookie: allCookies } : {}),
+    },
+    cache: 'no-store',
   });
 
   if (!res.ok) {
-    throw new Error(`serverGet ${path} failed (${res.status})`);
+    const body = await res.text().catch(() => '');
+    throw new Error(
+      `serverGet ${path} failed: ${res.status} ${res.statusText} — ${body}`,
+    );
   }
 
-  return res.json();
+  const text = await res.text();
+  return text ? (JSON.parse(text) as T) : (undefined as T);
 }
 
-export async function serverPost<T>(path: string, body: unknown): Promise<T> {
-  const auth = await getAuthHeader();
+/**
+ * POST/PATCH/DELETE from a server action.
+ * Same cookie-forwarding pattern as serverGet.
+ */
+export async function serverPost<T = unknown>(
+  path:   string,
+  body:   unknown,
+  method: 'POST' | 'PATCH' | 'DELETE' = 'POST',
+): Promise<T> {
+  const url = `${NEXT_BASE}/api${path}`;
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json', ...auth },
-    body:    JSON.stringify(body),
-    cache:   'no-store',
+  const cookieStore = await cookies();
+  const allCookies  = cookieStore.getAll()
+    .map((c) => `${c.name}=${c.value}`)
+    .join('; ');
+
+  const res = await fetch(url, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(allCookies ? { cookie: allCookies } : {}),
+    },
+    body:  JSON.stringify(body),
+    cache: 'no-store',
   });
 
   if (!res.ok) {
-    throw new Error(`serverPost ${path} failed (${res.status})`);
+    const body = await res.text().catch(() => '');
+    throw new Error(
+      `serverPost ${method} ${path} failed: ${res.status} ${res.statusText} — ${body}`,
+    );
   }
 
-  return res.json();
+  const text = await res.text();
+  return text ? (JSON.parse(text) as T) : (undefined as T);
 }

@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             user: {
             id:           payload.sub,
             email:        payload.email,
-            name:         null,
+            name:         payload.name ?? null,
             platformRole: payload.platformRole,
             },
             workspace: {

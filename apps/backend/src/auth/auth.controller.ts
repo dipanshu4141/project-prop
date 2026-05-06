@@ -26,7 +26,7 @@ const BASE_COOKIE = {
 };
 
 const ACCESS_COOKIE  = { ...BASE_COOKIE, maxAge: 15 * 60 * 1000 };
-const REFRESH_COOKIE = { ...BASE_COOKIE, maxAge: 30 * 24 * 60 * 60 * 1000 };
+const REFRESH_COOKIE = { ...BASE_COOKIE, maxAge: 365 * 24 * 60 * 60 * 1000 };
 
 function setCookies(res: Response, accessToken: string, refreshToken: string) {
   res.cookie('access_token',  accessToken,  ACCESS_COOKIE);
@@ -117,4 +117,17 @@ export class AuthController {
   me(@CurrentUser() user: JwtPayload) {
     return user;
   }
+
+  @Post('register-member')
+async registerMember(
+  @Body() dto: { name: string; email: string; password: string; inviteToken: string },
+  @Req()  req: Request,
+  @Res()  res: Response,
+) {
+  const result = await this.authService.registerViaInvite(dto, req);
+  setCookies(res, result.accessToken, result.refreshToken);
+  return res.json({ user: result.user, workspace: result.workspace });
+}
+ 
+
 }

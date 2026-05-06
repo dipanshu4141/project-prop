@@ -73,6 +73,17 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
   console.log(`Backend running on http://localhost:${process.env.PORT ?? 3000}/api`);
+
+  // # Add to your NestJS main.ts temporarily
+  setInterval(() => {
+    const mem = process.memoryUsage();
+    console.log({
+      heapUsed:  `${Math.round(mem.heapUsed  / 1024 / 1024)}MB`,
+      heapTotal: `${Math.round(mem.heapTotal / 1024 / 1024)}MB`,
+      rss:       `${Math.round(mem.rss       / 1024 / 1024)}MB`,
+      external:  `${Math.round(mem.external  / 1024 / 1024)}MB`,
+    });
+  }, 10000);
 }
 
 

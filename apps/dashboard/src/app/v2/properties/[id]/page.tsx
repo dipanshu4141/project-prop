@@ -6,10 +6,11 @@ import { WhatsAppMessageCard } from "@/components/v2/property/WhatsAppMessageCar
 import { PropertyLeadsDropdown } from "@/components/v2/property/PropertyLeadsDropdown";
 import { DeletePropertyButton } from "@/components/v2/property/DeletePropertyButton";
 import { PropertyStatusSelect } from "@/components/v2/property/PropertyStatusSelect";
+import { StartDealButton } from "@/components/v2/deals/StartDealButton";
 import { serverGet } from "@/lib/serverApi";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
-
+import { BackButton } from "@/components/v2/navigation/BackButton";
 /* ------------------------------------------------------------------ */
 /* DATA FETCHERS                                                        */
 /* ------------------------------------------------------------------ */
@@ -80,7 +81,7 @@ export default async function PropertyDetailsPage({
   params:       Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { id }             = await params;
+  const { id }               = await params;
   const resolvedSearchParams = await searchParams;
   const filtersQuery         = buildFiltersQuery(resolvedSearchParams);
 
@@ -93,7 +94,8 @@ export default async function PropertyDetailsPage({
       getPropertyActivities(id),
       getPropertyNeighbors(id, filtersQuery),
     ]);
-  } catch {
+  } catch (err) {
+    console.error('PropertyDetailsPage fetch failed:', err); // ← add this
     return <ErrorState />;
   }
 
@@ -101,41 +103,37 @@ export default async function PropertyDetailsPage({
     ? `${property.bhk} ${property.propertySubType}`
     : property.propertySubType ?? "Property";
 
+
   return (
     <PageContainer className="bg-[#F7F5F0] min-h-screen">
 
       {/* ── STICKY TOP NAV ── */}
       <div className="sticky top-14 lg:top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white px-4 sm:px-6 py-2.5 sm:py-3">
-        <Link
-          href={`/v2/properties?${filtersQuery}`}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors"
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Properties</span>
-        </Link>
+        <BackButton className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors" />
 
         <p className="absolute left-1/2 -translate-x-1/2 text-[13px] font-semibold text-slate-700 truncate max-w-[180px] sm:max-w-xs">
           {title}
         </p>
 
-        <PropertyHeader
-          title={title}
-          propertyId={property.id}
-          status={property.status}
-          prevId={neighbors?.prevId ?? null}
-          nextId={neighbors?.nextId ?? null}
-          compact
-        />
-        <div className="flex items-center gap-2 ml-2">
-          <PropertyStatusSelect
+        <div className="flex items-center gap-2">
+          <PropertyHeader
+            title={title}
             propertyId={property.id}
-            currentStatus={property.status}
+            status={property.status}
+            prevId={neighbors?.prevId ?? null}
+            nextId={neighbors?.nextId ?? null}
+            compact
+          />
+          <PropertyStatusSelect
+            listingId={property.id}
+            current={property.availability}
           />
           <DeletePropertyButton
             propertyId={property.id}
             propertyLabel={title}
             compact
           />
+          <StartDealButton listingId={property.id} />
         </div>
       </div>
 
@@ -148,7 +146,7 @@ export default async function PropertyDetailsPage({
             <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
               <div className={[
                 "h-1 w-full",
-                property.status === "APPROVED"    ? "bg-emerald-400" :
+                property.status === "APPROVED"         ? "bg-emerald-400" :
                 property.urgencyLevel === "VERY_URGENT" ? "bg-red-400"     :
                                                           "bg-amber-400",
               ].join(" ")} />
@@ -160,7 +158,7 @@ export default async function PropertyDetailsPage({
 
           {/* ── RIGHT — leads + source message ── */}
           <div className="col-span-12 lg:col-span-8 space-y-4">
-            
+
             {property.message?.rawText && (
               <WhatsAppMessageCard message={property.message.rawText} />
             )}

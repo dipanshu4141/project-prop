@@ -4,16 +4,26 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { AiParseResult, AiParserService } from '../../ai/property-parser/ai-parser/ai-parser.service';
 import { looksLikeGarbageName } from '../../common/utils/nameSanitizer';
 import { ALLOWED_RESTRICTION_CODES } from './tenantRules';
+import { PreClassifiedResult } from '../messages/pre-classifier.service';
 
+
+
+// const VALID_AVAILABILITY = ['AVAILABLE', 'UNDER_NEGOTIATION', 'CLOSED', 'ON_HOLD'] as const;
+
+// // function toAvailability(raw?: string | null): AvailabilityStatus {
+// //   return (VALID_AVAILABILITY.includes(raw as AvailabilityStatus)
+// //     ? raw
+// //     : 'AVAILABLE') as AvailabilityStatus;
+// // }
 @Injectable()
 export class PropertiesService {
   private readonly logger = new Logger(PropertiesService.name);
-
+  
   constructor(
     private prisma:          PrismaService,
     private aiParserService: AiParserService,
   ) {}
-
+  
   /* ================================================================
    * AI INGEST
    * All data created here is scoped to the workspace.
@@ -74,6 +84,7 @@ export class PropertiesService {
           messageId,
           canonicalPropertyId,
           refCode:          await this.nextRefCode(workspaceId),
+          lastActivityAt:   message.receivedAt,  
           listingType:      mapListingType(item.listingType),
           propertyCategory: mapPropertyCategory(item.propertyCategory),
           propertySubType:  mapPropertySubType(item.propertySubType),
@@ -115,7 +126,10 @@ export class PropertiesService {
             status:       listingData.status,
             confidence:   listingData.confidence,
           },
-          create: listingData,
+          create: {
+            ...listingData,
+            availability: (listingData.availability ?? 'AVAILABLE') as import('@prisma/client').$Enums.AvailabilityStatus,
+          },
         });
 
         // ── Attach agents ──
@@ -128,6 +142,9 @@ export class PropertiesService {
           contactBlock.agentName || null,
           contactBlock.firmName  || null,
         );
+
+        // ── Activity log ──
+        this.logger.log(`🏠 New listing: ${created.refCode} | ${item.bhk ?? '—'} ${item.propertySubType ?? ''} | ${item.area ?? '—'}, ${item.city ?? '—'} | ws=${workspaceId}`);
 
         // ── Activity log ──
         await this.prisma.listingActivity.create({
@@ -154,6 +171,82 @@ export class PropertiesService {
       }
     }
   }
+
+
+  // ── REPLACE the createFromPreClassified method in properties.service.ts ───────
+// The version generated earlier had wrong field names. Use this instead.
+
+  async createFromPreClassified(
+    data: PreClassifiedResult['extracted'],
+    messageId: string,
+    workspaceId: string,
+  ): Promise<void> {
+    // Use resolveOrCreateCanonical (already exists in this service)
+    // Build a synthetic item that matches what resolveOrCreateCanonical expects
+    const syntheticItem = {
+      city:            null,
+      area:            data.location ?? null,
+      building:        null,
+      bhk:             data.bhk ?? null,
+      propertySubType: null,
+      areaSqft:        null,
+      listingType:     data.listingType ?? 'RENT',
+    };
+
+    const canonicalPropertyId = await this.resolveOrCreateCanonical(
+      syntheticItem,
+      data.phones,
+      data.phones[0] ?? null,
+    );
+
+    // Check for existing listing on this canonical (same guard as createFromAi)
+    const existingListing = await this.prisma.workspaceListing.findFirst({
+      where: { workspaceId, canonicalPropertyId },
+    });
+    if (existingListing) {
+      this.logger.log(`[REGEX] Skipping duplicate canonical ${canonicalPropertyId}`);
+      return;
+    }
+
+    // Map furnishing: classifier returns 'FURNISHED' but schema uses 'FULLY_FURNISHED'
+    const furnishingMap: Record<string, import('@prisma/client').FurnishingType> = {
+      FURNISHED:      'FULLY_FURNISHED',
+      SEMI_FURNISHED: 'SEMI_FURNISHED',
+      UNFURNISHED:    'UNFURNISHED',
+    };
+    const furnishing = data.furnishing ? (furnishingMap[data.furnishing] ?? null) : null;
+
+    // listingType: classifier may return 'REQUIREMENT' — schema only has RENT/SALE
+    const listingType: import('@prisma/client').ListingType =
+      data.listingType === 'SALE' ? 'SALE' : 'RENT';
+
+    const refCode = await this.nextRefCode(workspaceId);
+
+    await this.prisma.workspaceListing.create({
+      data: {
+        workspaceId,
+        messageId,
+        canonicalPropertyId,
+        refCode,
+        listingType,
+        area:       data.location ?? null,   // best field available from classifier
+        bhk:        data.bhk     ?? null,
+        price:      data.price   ? BigInt(data.price) : null,
+        furnishing: furnishing   ?? null,
+        urgencyLevel: data.isUrgent ? 'URGENT' : 'NORMAL',
+        // contacts stored as JSON array string — same pattern as createFromAi
+        contacts:     data.phones,
+        senderContact: data.phones[0] ?? null,
+        confidence:   0.7,               // fixed mid-confidence for regex path
+        status:       'REVIEW',          // always REVIEW — no AI verification
+        availability: 'AVAILABLE',
+      },
+    });
+
+    this.logger.log(`[REGEX] Created listing for canonical ${canonicalPropertyId} (no Gemini)`);
+  }
+  
+
 
   /* ─── Resolve or create the canonical property fingerprint ────────── */
   private async resolveOrCreateCanonical(
@@ -191,15 +284,12 @@ export class PropertiesService {
     });
 
     if (existing) {
-      await this.prisma.canonicalProperty.update({
-        where: { id: existing.id },
-        data:  { listingCount: { increment: 1 } },
-      });
       return existing.id;
+      // listingCount is now computed from _count.listings — no manual increment needed
     }
 
-    const created = await this.prisma.canonicalProperty.create({
-      data: { fingerprint, globalRefCode: await this.nextGlobalRefCode(), listingCount: 1 },
+     const created = await this.prisma.canonicalProperty.create({
+      data: { fingerprint, globalRefCode: await this.nextGlobalRefCode() },
     });
     return created.id;
   }
@@ -210,13 +300,14 @@ export class PropertiesService {
   }
 
   private async nextRefCode(workspaceId: string): Promise<string> {
-    const [workspace, count] = await Promise.all([
-      this.prisma.workspace.findUnique({ where: { id: workspaceId }, select: { slug: true } }),
-      this.prisma.workspaceListing.count({ where: { workspaceId } }),
-    ]);
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId }, select: { slug: true },
+    });
     const slug = workspace?.slug ?? workspaceId.slice(0, 8);
     const year = new Date().getFullYear();
-    return `${slug}-${year}-${String(count + 1).padStart(4, '0')}`;
+    const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const ts   = Date.now().toString(36).toUpperCase();
+    return `${slug}-${year}-${ts}${rand}`;
   }
 
   calculateStatus(item: any): PropertyStatus {
@@ -451,10 +542,14 @@ export class PropertiesService {
     const limit = Number(query.limit || 20);
     const skip  = (page - 1) * limit;
 
-    let orderBy: any = { createdAt: 'desc' };
-    if (query.sort === 'urgent')       orderBy = [{ urgencyLevel: 'desc' }, { createdAt: 'desc' }];
-    else if (query.sort === 'most_shared') orderBy = { shares: { _count: 'desc' } };
-    else if (query.sortBy)             orderBy = { [query.sortBy]: query.sortOrder || 'desc' };
+    let orderBy: any = { lastSeenAt: 'desc' };
+    if (query.sort === 'urgent')             orderBy = [{ urgencyLevel: 'desc' }, { lastSeenAt: 'desc' }];
+    else if (query.sort === 'most_shared')   orderBy = { shares: { _count: 'desc' } };
+    else if (query.sort === 'last_seen')     orderBy = { lastSeenAt: 'desc' };
+    else if (query.sort === 'last_activity') orderBy = { lastActivityAt: 'desc' };
+    else if (query.sortBy === 'createdAt')   orderBy = { createdAt: query.sortOrder || 'desc' };
+    else if (query.sortBy)                   orderBy = { [query.sortBy]: query.sortOrder || 'desc' };
+
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.workspaceListing.findMany({
@@ -466,6 +561,9 @@ export class PropertiesService {
           shares: true,
           listingAgents: {
             include: { agent: { include: { phones: true } } },
+          },
+          canonicalProperty: {
+            select: { createdAt: true },
           },
         },
       }),
@@ -481,7 +579,14 @@ export class PropertiesService {
       const due       = openLeads.filter((l: any) => l.followUpAt && new Date(l.followUpAt) <= today);
       const overdue   = openLeads.filter((l: any) => l.followUpAt && new Date(l.followUpAt) < today);
 
-      return { ...hydrated, leadsCount: leads.length, dueFollowUpsCount: due.length, overdueFollowUpsCount: overdue.length };
+      return {
+        ...hydrated,
+        leadsCount:           leads.length,
+        dueFollowUpsCount:    due.length,
+        overdueFollowUpsCount: overdue.length,
+        marketFirstSeenAt:    (p as any).canonicalProperty?.createdAt ?? null,
+      };
+
     });
 
     return { items: enriched, total, page, pages: Math.ceil(total / limit) };
@@ -572,6 +677,11 @@ export class PropertiesService {
         targetContact: phone,
         clientId:      client.id,
       },
+    });
+
+    await this.prisma.workspaceListing.update({
+      where: { id: listingId },
+      data:  { lastActivityAt: new Date() },
     });
 
     // Activity log

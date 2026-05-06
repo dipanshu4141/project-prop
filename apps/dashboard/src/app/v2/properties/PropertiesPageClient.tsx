@@ -7,9 +7,38 @@ import { PageHeader } from "@/components/v2/layout/PageHeader";
 import PropertiesClient from "./PropertiesClient";
 import AddPropertyModal from "./AddPropertyModal";
 import { PasteMessageButton } from "@/components/v2/property/PasteMessageButton";
+import { useRouter } from 'next/navigation';
+import { StartDealModal } from '@/components/v2/deals/StartDealModal';
+import Link from 'next/link';
+import { Radio } from 'lucide-react';
+
+
+function GroupsBanner() {
+  return (
+    <Link href="/v2/groups">
+      <div className="mb-4 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 hover:bg-emerald-100 transition-colors group">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 border border-emerald-200 flex-shrink-0">
+            <Radio className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-emerald-800">Subscribe to WhatsApp groups</p>
+            <p className="text-xs text-emerald-600 mt-0.5">Listings from subscribed groups appear here automatically</p>
+          </div>
+        </div>
+        <span className="text-xs font-semibold text-emerald-700 bg-white border border-emerald-200 rounded-lg px-3 py-1.5 group-hover:border-emerald-300 transition-colors flex-shrink-0">
+          Manage groups →
+        </span>
+      </div>
+    </Link>
+  );
+}
 
 export default function PropertiesPageClient() {
   const [addOpen, setAddOpen] = useState(false);
+  const router = useRouter();
+  const [showDeal, setShowDeal] = useState(false);
+  
 
   return (
     <PageContainer className="bg-[#F7F5F0]">
@@ -40,7 +69,8 @@ export default function PropertiesPageClient() {
         }
       />
 
-      <PropertiesClient />
+      <GroupsBanner />
+    <PropertiesClient />
 
       <AddPropertyModal
         open={addOpen}

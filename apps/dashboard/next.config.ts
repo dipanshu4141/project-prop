@@ -2,21 +2,36 @@ import type { NextConfig } from "next";
 import withPWAInit from "next-pwa";
 
 const withPWA = withPWAInit({
-  dest: "public",
-  register: true,
+  dest:        "public",
+  register:    true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === "development",
+  disable:     process.env.NODE_ENV === "development",
 });
 
 const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        // 🔁 Forward API requests to NestJS
-        source: "/properties/:path*",
+        source:      "/properties/:path*",
         destination: "http://localhost:3000/properties/:path*",
       },
     ];
+  },
+
+  webpack: (config) => {
+    // Reduce file watching scope — prevents Turbopack from
+    // watching node_modules and other large directories that
+    // never change, which was causing constant CPU activity
+    config.watchOptions = {
+      ignored: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/dist/**',
+        '**/.next/**',
+        '**/public/**',
+      ],
+    };
+    return config;
   },
 };
 

@@ -326,6 +326,7 @@ import {
   AiProperty,
   ParseOutcome,
 } from './ai-parser.types';
+import { PreClassifiedResult } from '../../../modules/messages/pre-classifier.service';
 
 // Re-export all types so existing imports from this file continue to work
 export type {
@@ -338,7 +339,7 @@ export type {
 
 // ── Constants ────────────────────────────────────────────────
 
-const GEMINI_MODEL = 'gemini-2.5-flash-lite';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_TIMEOUT_MS = 15_000;
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 1_000;
@@ -367,7 +368,13 @@ export class AiParserService {
     }
     // Model instantiated once and reused across all calls
     const genAI = new GoogleGenerativeAI(key);
-    this.model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+    this.model = genAI.getGenerativeModel({
+      model: GEMINI_MODEL,
+      generationConfig: {
+        thinkingConfig: { thinkingBudget: 0 },
+      } as any,
+    });
+
   }
 
   // ── Public API ─────────────────────────────────────────────
@@ -415,6 +422,28 @@ export class AiParserService {
 
     return { success: true, data, truncated };
   }
+
+  async parseWithHints(
+    raw: string,
+    hints: PreClassifiedResult['extracted'],
+  ): Promise<ParseOutcome> {
+    const hintsText = [
+      hints.listingType && `Listing type: ${hints.listingType}`,
+      hints.location    && `Location: ${hints.location}`,
+      hints.bhk         && `BHK: ${hints.bhk}`,
+      hints.price       && `Price: ₹${hints.price} (raw: ${hints.priceRaw})`,
+      hints.furnishing  && `Furnishing: ${hints.furnishing}`,
+      hints.phones.length && `Phones: ${hints.phones.join(', ')}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+  
+    const hintedRaw = `${raw}\n\n[PRE-EXTRACTED HINTS — verify and fill remaining fields]\n${hintsText}`;
+  
+    return this.parseMessage(hintedRaw);   // ← parseMessage, not parse
+  }
+
+
 
   // ── Gemini call with retry + timeout ──────────────────────
 

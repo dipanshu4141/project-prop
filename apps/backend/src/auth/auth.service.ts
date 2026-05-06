@@ -19,11 +19,13 @@ import {
 import { JwtPayload } from './jwt-payload.interface';
 import { MemberRole } from '@prisma/client';
 
+
+
 @Injectable()
 export class AuthService {
   constructor(
     private prisma:     PrismaService,
-    private jwtService: JwtService,
+    private jwtService: JwtService, 
   ) {}
 
   // ─────────────────────────────────────────────────────────────
@@ -247,5 +249,125 @@ export class AuthService {
       attempts++;
       slug = `${base}-${attempts}`;
     }
+  }
+
+    async registerViaInvite(
+    dto: {
+      name:        string;
+      email:       string;
+      password:    string;
+      inviteToken: string;
+    },
+    req: Request,
+  ) {
+    // 1. Validate the invite token first — fail fast if it's bad
+    const invite = await this.prisma.workspaceInvite.findUnique({
+      where:   { token: dto.inviteToken },
+      include: { workspace: { select: { id: true, name: true, slug: true, type: true } } },
+    });
+  
+    if (!invite)                     throw new BadRequestException('Invalid invite token');
+    if (invite.status !== 'PENDING') throw new BadRequestException('This invite has already been used or revoked');
+    if (invite.expiresAt < new Date()) throw new BadRequestException('This invite has expired');
+  
+    // 2. Verify email matches what was invited
+    if (invite.email.toLowerCase() !== dto.email.toLowerCase()) {
+      throw new BadRequestException(
+        `This invite was sent to ${invite.email}. Please register with that email address.`,
+      );
+    }
+  
+    // 3. Check email not already taken
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email.toLowerCase() },
+    });
+    if (existing) throw new ConflictException('An account with this email already exists. Please log in instead.');
+  
+    // 4. Hash password
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+  
+    // 5. Create user + accept invite in one transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Create user (no workspace)
+      const user = await tx.user.create({
+        data: {
+          email:        dto.email.toLowerCase(),
+          passwordHash,
+          name:         dto.name.trim(),
+          emailVerified: false,
+          platformRole: 'USER',
+        },
+      });
+  
+      // Add as workspace member
+      await tx.workspaceMember.create({
+        data: {
+          workspaceId: invite.workspaceId,
+          userId:      user.id,
+          role:        invite.role,
+          inviteId:    invite.id,
+        },
+      });
+  
+      // Mark invite accepted
+      await tx.workspaceInvite.update({
+        where: { id: invite.id },
+        data:  { status: 'ACCEPTED', acceptedAt: new Date() },
+      });
+  
+      // Update seats used
+      await tx.subscription.updateMany({
+        where: { workspaceId: invite.workspaceId },
+        data:  { seatsUsed: { increment: 1 } },
+      });
+  
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          userId:     user.id,
+          workspaceId: invite.workspaceId,
+          action:     'MEMBER_JOINED',
+          entity:     'WorkspaceMember',
+          after:      { role: invite.role, via: 'invite_register' },
+        },
+      });
+  
+      return { user, workspace: invite.workspace };
+    });
+  
+    // 6. Issue tokens (same as regular register)
+    const payload: JwtPayload = {
+      sub:          result.user.id,
+      email:        result.user.email,
+      workspaceId:  result.workspace.id,
+      role:         invite.role as MemberRole,
+      platformRole: result.user.platformRole,
+    };
+
+    const { accessToken, refreshToken } = await this.issueTokens(
+      payload,
+      result.workspace,   // full workspace object, not just .id
+      result.user,
+      invite.role as MemberRole,
+      req,
+    );
+      
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id:           result.user.id,
+        email:        result.user.email,
+        name:         result.user.name,
+        platformRole: result.user.platformRole,
+      },
+      workspace: {
+        id:   result.workspace.id,
+        name: result.workspace.name,
+        slug: result.workspace.slug,
+        type: result.workspace.type,
+        role: invite.role,
+      },
+    };
   }
 }

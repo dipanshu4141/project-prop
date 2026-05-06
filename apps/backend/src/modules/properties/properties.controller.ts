@@ -8,6 +8,8 @@ import {
   Query,
   Post,
   UseGuards,
+  NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { PropertyStatus } from '@prisma/client';
 import { PropertiesService } from './properties.service';
@@ -21,6 +23,8 @@ import { JwtPayload } from '../../auth/jwt-payload.interface';
 @Controller('properties')
 @UseGuards(JwtAuthGuard)   // ← every route in this controller requires a valid JWT
 export class PropertiesController {
+  private readonly logger = new Logger(PropertiesController.name);
+
   constructor(private readonly propertiesService: PropertiesService) {}
 
   // ================================================================
@@ -61,11 +65,12 @@ export class PropertiesController {
   // ================================================================
 
   @Get(':id')
-  getOne(
-    @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
-  ) {
-    return this.propertiesService.getPropertyWithDistribution(user.workspaceId, id);
+  async getOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    this.logger.log(`getOne called: id=${id} workspaceId=${user.workspaceId}`);
+    const property = await this.propertiesService.getPropertyWithDistribution(user.workspaceId, id);
+    this.logger.log(`getPropertyWithDistribution result: ${property ? 'found' : 'null'}`);
+    if (!property) throw new NotFoundException('Property not found');
+    return property;
   }
 
   @Get(':id/neighbors')

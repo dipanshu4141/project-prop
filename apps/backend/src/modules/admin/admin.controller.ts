@@ -1,136 +1,215 @@
-import {
-  Controller, Get, Patch, Param, Query, Body, UseGuards,
-} from '@nestjs/common';
-import { AdminService } from './admin.service';
-import { JwtAuthGuard, PlatformRolesGuard } from '../../auth/guards/auth.guards';
-import { PlatformRoles } from '../../auth/decorators/roles.decorator';
-import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { JwtPayload } from '../../auth/jwt-payload.interface';
+// apps/backend/src/modules/admin/admin.controller.ts
+// Replaces the previous admin-properties.controller.ts
+// All routes under /admin/* — requires SUPERADMIN or SUPPORT platform role.
 
-/**
- * All routes here require:
- *   1. Valid JWT (JwtAuthGuard)
- *   2. platformRole = SUPERADMIN or SUPPORT (PlatformRolesGuard)
- *
- * SUPERADMIN = full read + write
- * SUPPORT    = read + limited actions (no suspend, no role change)
- */
+import { Controller, Get, Post, Patch, Param, Query, 
+  Body, Request,UseGuards, ForbiddenException,
+  HttpCode, HttpStatus } from '@nestjs/common';
+import { JwtAuthGuard } from '../../auth/guards/auth.guards';
+
+import { AdminPropertiesService }    from './admin-properties.service';
+import { AdminWorkspacesService }    from './admin-workspaces.service';
+import { AdminUsersService }         from './admin-users.service';
+import { AdminSubscriptionsService } from './admin-subscriptions.service';
+import { HealthService } from './health.service';
+import { AdminAuditService }         from './admin-audit.service';
+import { DedupService } from '../dedup/dedup.service';
+
+function requireAdmin(req: any) {
+  const role = req.user?.platformRole;
+  if (role !== 'SUPERADMIN' && role !== 'SUPPORT') {
+    throw new ForbiddenException('Admin access required');
+  }
+}
+
+function requireSuperAdmin(req: any) {
+  if (req.user?.platformRole !== 'SUPERADMIN') {
+    throw new ForbiddenException('SuperAdmin access required');
+  }
+}
 
 @Controller('admin')
-@UseGuards(JwtAuthGuard, PlatformRolesGuard)
-@PlatformRoles('SUPERADMIN', 'SUPPORT')
+@UseGuards(JwtAuthGuard)
 export class AdminController {
-  constructor(private admin: AdminService) {}
+    constructor(
+    private readonly properties:    AdminPropertiesService,
+    private readonly workspaces:    AdminWorkspacesService,
+    private readonly users:         AdminUsersService,
+    private readonly subscriptions: AdminSubscriptionsService,
+    private readonly audit:         AdminAuditService,
+    private readonly health:        HealthService,
+    private readonly dedup:         DedupService,
+  ) {}
 
-  /* ================================================================
-   * PLATFORM STATS
-   * ================================================================ */
-
-  @Get('stats')
-  getStats() {
-    return this.admin.getPlatformStats();
+  @Get('health')
+  getPlatformHealth(@Request() req: any) {
+    requireSuperAdmin(req);
+    return this.health.getPlatformHealth();
   }
 
-  /* ================================================================
-   * WORKSPACES
-   * ================================================================ */
+  // ── PROPERTIES ────────────────────────────────────────────────────────────
+
+  @Get('properties/stats')
+  getPropertyStats(@Request() req: any) {
+    requireAdmin(req);
+    return this.properties.getStats();
+  }
+
+  @Get('properties')
+  findAllProperties(@Query() q: any, @Request() req: any) {
+    requireAdmin(req);
+    return this.properties.findAll({
+      page: q.page ? Number(q.page) : 1,
+      limit: q.limit ? Number(q.limit) : 20,
+      q: q.q,
+      verified: q.verified,
+      duplicatesOnly: q.duplicatesOnly,
+      sortBy:         q.sortBy,         // ← add
+      sortOrder:      q.sortOrder,      // ← add
+    });
+  }
+
+  @Get('properties/:id')
+  findOneProperty(@Param('id') id: string, @Request() req: any) {
+    requireAdmin(req);
+    return this.properties.findOne(id);
+  }
+
+  @Patch('properties/:id/verify')
+  @HttpCode(HttpStatus.OK)
+  verifyProperty(@Param('id') id: string, @Request() req: any) {
+    requireAdmin(req);
+    return this.properties.verify(id, req.user.sub);
+  }
+
+  // ── WORKSPACES ────────────────────────────────────────────────────────────
 
   @Get('workspaces')
-  getWorkspaces(
-    @Query('page')      page?:      string,
-    @Query('limit')     limit?:     string,
-    @Query('q')         q?:         string,
-    @Query('plan')      plan?:      string,
-    @Query('type')      type?:      string,
-    @Query('active')    active?:    string,
-    @Query('sortBy')    sortBy?:    string,
-    @Query('sortOrder') sortOrder?: string,
-  ) {
-    return this.admin.getWorkspaces({
-      page:      page      ? Number(page)  : undefined,
-      limit:     limit     ? Number(limit) : undefined,
-      q, plan, type, active,
-      sortBy,
-      sortOrder: sortOrder as any,
+  findAllWorkspaces(@Query() q: any, @Request() req: any) {
+    requireAdmin(req);
+    return this.workspaces.findAll({
+      page:  q.page  ? Number(q.page)  : 1,
+      limit: q.limit ? Number(q.limit) : 20,
+      q:      q.q,
+      type:   q.type,
+      plan:   q.plan,
+      active: q.active,
     });
   }
 
   @Get('workspaces/:id')
-  getWorkspace(@Param('id') id: string) {
-    return this.admin.getWorkspace(id);
+  findOneWorkspace(@Param('id') id: string, @Request() req: any) {
+    requireAdmin(req);
+    return this.workspaces.findOne(id);
   }
 
   @Patch('workspaces/:id/suspend')
-  @PlatformRoles('SUPERADMIN')    // SUPPORT cannot suspend
+  @HttpCode(HttpStatus.OK)
   suspendWorkspace(
-    @CurrentUser() admin: JwtPayload,
     @Param('id') id: string,
     @Body() body: { reason?: string },
+    @Request() req: any,
   ) {
-    return this.admin.setWorkspaceActive(id, false, body.reason, admin.sub);
+    requireSuperAdmin(req);
+    return this.workspaces.suspend(id, body.reason ?? 'Suspended by admin');
   }
 
-  @Patch('workspaces/:id/reactivate')
-  @PlatformRoles('SUPERADMIN')
-  reactivateWorkspace(
-    @CurrentUser() admin: JwtPayload,
-    @Param('id') id: string,
-  ) {
-    return this.admin.setWorkspaceActive(id, true, undefined, admin.sub);
+  @Patch('workspaces/:id/unsuspend')
+  @HttpCode(HttpStatus.OK)
+  unsuspendWorkspace(@Param('id') id: string, @Request() req: any) {
+    requireSuperAdmin(req);
+    return this.workspaces.unsuspend(id);
   }
 
-  /* ================================================================
-   * USERS
-   * ================================================================ */
+  // ── USERS ─────────────────────────────────────────────────────────────────
 
   @Get('users')
-  getUsers(
-    @Query('page')         page?:         string,
-    @Query('limit')        limit?:        string,
-    @Query('q')            q?:            string,
-    @Query('platformRole') platformRole?: string,
-    @Query('active')       active?:       string,
-  ) {
-    return this.admin.getUsers({
-      page:  page  ? Number(page)  : undefined,
-      limit: limit ? Number(limit) : undefined,
-      q, platformRole, active,
+  findAllUsers(@Query() q: any, @Request() req: any) {
+    requireAdmin(req);
+    return this.users.findAll({
+      page:         q.page ? Number(q.page) : 1,
+      limit:        q.limit ? Number(q.limit) : 20,
+      q:            q.q,
+      platformRole: q.platformRole,
+      active:       q.active,
     });
   }
 
-  @Patch('users/:id')
-  @PlatformRoles('SUPERADMIN')    // SUPPORT cannot change roles or deactivate users
-  updateUser(
-    @CurrentUser() admin: JwtPayload,
-    @Param('id') targetUserId: string,
-    @Body() dto: { isActive?: boolean; platformRole?: string },
+  @Patch('users/:id/platform-role')
+  @HttpCode(HttpStatus.OK)
+  setUserRole(
+    @Param('id') id: string,
+    @Body() body: { role: string },
+    @Request() req: any,
   ) {
-    return this.admin.updateUser(targetUserId, dto, admin.sub);
+    requireSuperAdmin(req);
+    return this.users.setPlatformRole(id, body.role);
   }
 
-  /* ================================================================
-   * SUBSCRIPTIONS
-   * ================================================================ */
+  @Patch('users/:id/deactivate')
+  @HttpCode(HttpStatus.OK)
+  deactivateUser(@Param('id') id: string, @Request() req: any) {
+    requireSuperAdmin(req);
+    return this.users.deactivate(id);
+  }
+
+  @Patch('users/:id/activate')
+  @HttpCode(HttpStatus.OK)
+  activateUser(@Param('id') id: string, @Request() req: any) {
+    requireSuperAdmin(req);
+    return this.users.activate(id);
+  }
+
+  // ── SUBSCRIPTIONS ─────────────────────────────────────────────────────────
+
+  @Get('subscriptions/stats')
+  getSubscriptionStats(@Request() req: any) {
+    requireAdmin(req);
+    return this.subscriptions.getStats();
+  }
 
   @Get('subscriptions')
-  getSubscriptions() {
-    return this.admin.getSubscriptionOverview();
+  findAllSubscriptions(@Query() q: any, @Request() req: any) {
+    requireAdmin(req);
+    return this.subscriptions.findAll({
+      page:   q.page  ? Number(q.page)  : 1,
+      limit:  q.limit ? Number(q.limit) : 20,
+      q:      q.q,
+      status: q.status,
+      plan:   q.plan,
+    });
   }
 
-  /* ================================================================
-   * AUDIT LOG
-   * ================================================================ */
+  // ── AUDIT LOG ─────────────────────────────────────────────────────────────
+
+  @Get('audit/meta')
+  getAuditMeta(@Request() req: any) {
+    requireAdmin(req);
+    return Promise.all([
+      this.audit.getActions(),
+      this.audit.getEntities(),
+    ]).then(([actions, entities]) => ({ actions, entities }));
+  }
 
   @Get('audit')
-  getAuditLog(
-    @Query('page')        page?:        string,
-    @Query('limit')       limit?:       string,
-    @Query('workspaceId') workspaceId?: string,
-  ) {
-    return this.admin.getAuditLog({
-      page:  page  ? Number(page)  : undefined,
-      limit: limit ? Number(limit) : undefined,
-      workspaceId,
+  findAuditLogs(@Query() q: any, @Request() req: any) {
+    requireAdmin(req);
+    return this.audit.findAll({
+      page:        q.page  ? Number(q.page)  : 1,
+      limit:       q.limit ? Number(q.limit) : 50,
+      workspaceId: q.workspaceId,
+      userId:      q.userId,
+      action:      q.action,
+      entity:      q.entity,
+      fromDate:    q.fromDate,
+      toDate:      q.toDate,
     });
+  }
+
+  @Post('dedup/run')
+  @HttpCode(HttpStatus.OK)
+  runDedupBackfill(@Request() req: any) {
+    requireSuperAdmin(req);
+    return this.dedup.runBackfill();
   }
 }

@@ -2,15 +2,14 @@ import { NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.BACKEND_URL!;
 
-export async function GET(
-  req: Request,
+export async function GET(req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await context.params;
 
     const res = await fetch(
-      `${BACKEND_URL}/properties/${id}/activities`,
+      `${BACKEND_URL}/api/properties/${id}/activities`,
       {
         cache: "no-store",
         headers: {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { LeadStageBadge } from "@/components/v2/utils/leadStage";
 import { ClientPropertyActions } from "@/components/v2/clients/ClientPropertyActions";
 import { ClientFollowUp } from "@/components/v2/clients/ClientFollowUp";
@@ -7,7 +8,7 @@ import { ClientWhatsappDraft } from "@/components/v2/clients/ClientWhatsappDraft
 import { ChevronDown } from "lucide-react";
 
 function formatPrice(price?: string | number | null) {
-  if (!price) return "Price on request";
+  if (!price) return "—";
   const n = Number(price);
   if (isNaN(n)) return String(price);
   if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(2)} Cr`;
@@ -28,6 +29,8 @@ export default function ClientPropertiesTable({
   properties: any[];
   phone: string;
 }) {
+  const router = useRouter();
+
   if (!properties || properties.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -39,66 +42,66 @@ export default function ClientPropertiesTable({
   }
 
   return (
-    <div className="space-y-3">
-      {properties.map((cp) => {
-        // Backend may return "listing" (new schema) or "property" (old) — handle both
-        const prop     = cp.listing ?? cp.property ?? {};
-        const title    = [prop.bhk, prop.propertySubType ?? "Property"].filter(Boolean).join(" ");
-        const location = [prop.area, prop.city].filter(Boolean).join(", ") || "—";
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-slate-100">
+            {["Property", "Area", "Price", "Pipeline", "Client", ""].map((col) => (
+              <th key={col} className="px-3 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">
+                {col}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {properties.map((cp) => {
+            const prop     = cp.listing ?? cp.property ?? {};
+            const title    = [prop.bhk, prop.propertySubType].filter(Boolean).join(" ") || "Property";
+            const location = [prop.area, prop.city].filter(Boolean).join(", ") || "—";
 
-        return (
-          <div
-            key={cp.id}
-            className="rounded-xl border border-slate-100 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden"
-          >
-            <div className={[
-              "h-[3px] w-full",
-              cp.status === "INTERESTED"     ? "bg-emerald-400" :
-              cp.status === "NOT_INTERESTED" ? "bg-red-400"     :
-              cp.status === "VISITED"        ? "bg-sky-400"     :
-              "bg-slate-200",
-            ].join(" ")} />
+            return (
+              <tr
+                key={cp.id}
+                onClick={() => router.push(`/v2/properties/${prop.id}`)}
+                className="border-b border-slate-50 cursor-pointer hover:bg-slate-50/70 transition-colors"
+              >
+                {/* Property */}
+                <td className="px-3 py-3.5">
+                  <p className="text-[13px] font-semibold text-slate-800">{title}</p>
+                  <p className="text-[11px] text-slate-400">{location}</p>
+                </td>
 
-            <div className="px-3 sm:px-4 pt-3 sm:pt-3.5 pb-2.5 sm:pb-3">
-              <div className="flex items-start justify-between gap-2 sm:gap-3">
-                <div className="min-w-0">
-                  <p className="text-[16px] sm:text-[17px] font-bold leading-tight text-slate-900"
-                     style={{ fontFamily: "'Outfit', sans-serif" }}>
+                {/* Area */}
+                <td className="px-3 py-3.5 text-[12.5px] text-slate-500 whitespace-nowrap">
+                  {prop.areaSqft ? `${prop.areaSqft.toLocaleString("en-IN")} sq ft` : "—"}
+                </td>
+
+                {/* Price */}
+                <td className="px-3 py-3.5">
+                  <span className="text-[13px] font-semibold text-slate-900 whitespace-nowrap">
                     {formatPrice(prop.price)}
-                  </p>
-                  <p className="mt-0.5 text-[10.5px] sm:text-[11px] font-semibold uppercase tracking-[0.5px] text-slate-400">
-                    {title || "Property"}
-                  </p>
-                </div>
-                <ClientPropertyActions clientPropertyId={cp.id} currentStatus={cp.status} />
-              </div>
+                  </span>
+                </td>
 
-              <div className="mt-2 flex items-center gap-1.5 text-[12px] text-slate-500">
-                <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-500" />
-                {location}
-              </div>
+                {/* Pipeline */}
+                <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation()}>
+                  <LeadStageBadge stage={cp.status} />
+                </td>
 
-              <div className="mt-2.5 sm:mt-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
-                <LeadStageBadge stage={cp.status} />
-                <span className="text-[10.5px] text-slate-400">
-                  Shared {cp.sharedAt ? formatDate(cp.sharedAt) : "—"}
-                </span>
-                <ClientFollowUp clientPropertyId={cp.id} followUpAt={cp.followUpAt} />
-              </div>
+                {/* Client status */}
+                <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation()}>
+                  <ClientPropertyActions clientPropertyId={cp.id} currentStatus={cp.clientStatus ?? cp.status} />
+                </td>
 
-              <details className="mt-2.5 sm:mt-3 group">
-                <summary className="flex cursor-pointer list-none items-center gap-1 text-[11.5px] font-medium text-slate-400 hover:text-slate-600 transition-colors w-fit select-none">
-                  <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
-                  WhatsApp draft
-                </summary>
-                <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50 p-3">
-                  <ClientWhatsappDraft clientPropertyId={cp.id} phone={phone} />
-                </div>
-              </details>
-            </div>
-          </div>
-        );
-      })}
+                {/* Actions */}
+                <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation()}>
+                  <ClientFollowUp clientPropertyId={cp.id} followUpAt={cp.followUpAt} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

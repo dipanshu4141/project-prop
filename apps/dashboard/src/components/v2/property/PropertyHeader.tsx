@@ -3,7 +3,7 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, Share2 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PropertyStatusSelect } from "./PropertyStatusSelect";
+import { AvailabilityStatus, PropertyStatusSelect } from "./PropertyStatusSelect";
 import { SharePropertyModal } from "./SharePropertyModal";
 
 /* ------------------------------------------------------------------ */
@@ -100,8 +100,8 @@ export function PropertyHeader({
         {/* RIGHT — status + share */}
         <div className="flex items-center gap-2">
           <PropertyStatusSelect
-            propertyId={propertyId}
-            currentStatus={status as "APPROVED" | "REJECTED" | "REVIEW"}
+            listingId={propertyId}
+            current={status as AvailabilityStatus}
           />
           <button
             onClick={() => setOpen(true)}

@@ -16,7 +16,7 @@ export async function DELETE(
   console.log("DETACH PROXY HIT", { id, agentId });
 
   const res = await fetch(
-    `${BACKEND_URL}/properties/${id}/agents/${agentId}`,
+    `${BACKEND_URL}/api/properties/${id}/agents/${agentId}`,
     {
       method: "DELETE",
     }

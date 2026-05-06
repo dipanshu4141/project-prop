@@ -14,11 +14,11 @@ export async function POST(
     console.log("PROXY BODY:", body);
     console.log(
       "FORWARDING TO:",
-      `${BACKEND_URL}/properties/${id}/attach-agent`
+      `${BACKEND_URL}/api/properties/${id}/attach-agent`
     );
 
     const res = await fetch(
-      `${BACKEND_URL}/properties/${id}/attach-agent`,
+      `${BACKEND_URL}/api/properties/${id}/attach-agent`,
       {
         method: "POST",
         headers: {

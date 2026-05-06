@@ -1,17 +1,65 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+// apps/backend/src/modules/clients/clients.service.ts
+
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../core/prisma/prisma.service';
-import { ClientPropertyStatus, LeadStage } from '@prisma/client';
+import { ClientPropertyStatus, LeadStage, MemberRole } from '@prisma/client';
+
+// ── Caller context — passed from every controller method ─────────────────────
+// This replaces bare workspaceId params with full context so the service
+// can enforce role-based scoping without each method needing to know role logic.
+
+export interface CallerContext {
+  workspaceId: string;
+  userId:      string;      // User.id of the requesting broker/owner
+  role:        MemberRole;  // OWNER | BROKER | VIEWER
+}
 
 @Injectable()
 export class ClientsService {
-  constructor(private prisma: PrismaService, 
-    private readonly config: ConfigService,
+  constructor(
+    private prisma:  PrismaService,
+    private config:  ConfigService,
   ) {}
 
-  /* ================================================================
-   * HELPERS
-   * ================================================================ */
+  // ── Role helpers ────────────────────────────────────────────────────────────
+
+  /** OWNER sees all clients. BROKER sees only their own + unassigned pool. */
+  private clientScopeWhere(ctx: CallerContext) {
+    if (ctx.role === MemberRole.OWNER) {
+      return { workspaceId: ctx.workspaceId };
+    }
+
+    
+    // BROKER and VIEWER: own clients + unassigned pool
+
+    // V1: Pool hidden — brokers see all clients in workspace
+    // Restore OR clause with { ownerId: null } when Pool UI is enabled
+    return {
+      workspaceId: ctx.workspaceId,
+    };
+  }
+
+  /** Verify caller can access a specific client. Throws if not allowed. */
+  private async assertClientAccess(ctx: CallerContext, clientId: string) {
+    const client = await this.prisma.client.findFirst({
+      where: { id: clientId, workspaceId: ctx.workspaceId },
+      select: { id: true, ownerId: true },
+    });
+
+    if (!client) throw new NotFoundException('Client not found');
+
+    if (ctx.role !== MemberRole.OWNER) {
+      // BROKER can only access their own clients or unassigned ones
+      if (client.ownerId !== null && client.ownerId !== ctx.userId) {
+        throw new ForbiddenException('This client belongs to another broker');
+      }
+    }
+
+    return client;
+  }
+
+  // ── HELPERS ─────────────────────────────────────────────────────────────────
 
   private followUpRank(date: Date | null): number {
     if (!date) return 4;
@@ -27,72 +75,72 @@ export class ClientsService {
     const latest = properties[0]?.listing;
     if (!latest) return '—';
     const base = [latest.bhk, latest.propertySubType, latest.city]
-      .filter(Boolean)
-      .join(' ');
+      .filter(Boolean).join(' ');
     return properties.length === 1 ? base : `${base} +${properties.length - 1} more`;
   }
 
-  /* ================================================================
-   * CLIENT CORE
-   * ================================================================ */
+  // ── CLIENT CORE ─────────────────────────────────────────────────────────────
 
   /**
-   * Find or create a client scoped to a workspace.
-   * Same phone can exist in multiple workspaces — always filter by workspaceId.
+   * Find or create a client scoped to workspace.
+   * When a broker creates a client, they become the owner automatically.
    */
   async getOrCreateClient(
-    workspaceId: string,
-    phone:       string,
-    name?:       string,
+    ctx:    CallerContext,
+    phone:  string,
+    name?:  string,
   ) {
-    // Lookup by workspace + phone (unique per schema)
     const existing = await this.prisma.client.findFirst({
-      where: { workspaceId, phones: { some: { phone } } },
+      where: { workspaceId: ctx.workspaceId, phones: { some: { phone } } },
     });
 
     if (existing) return existing;
 
     return this.prisma.client.create({
       data: {
-        workspaceId,
+        workspaceId: ctx.workspaceId,
         name,
-        phones: {
-          create: { phone, primary: true },
-        },
+        ownerId: ctx.userId,    // ← assigned to the creating broker
+        phones:  { create: { phone, primary: true } },
       },
     });
   }
 
-  async getClient(workspaceId: string, clientId: string) {
+  async getClient(ctx: CallerContext, clientId: string) {
+    await this.assertClientAccess(ctx, clientId);
+
     return this.prisma.client.findFirst({
-      where: { id: clientId, workspaceId },   // ← workspace guard
+      where: { id: clientId, workspaceId: ctx.workspaceId },
       include: {
         phones: true,
+        owner:  { select: { id: true, name: true, email: true } },
         properties: {
           include: { listing: true },
           orderBy: { sharedAt: 'desc' },
         },
-        events: {
-          orderBy: { createdAt: 'desc' },
-        },
+        events: { orderBy: { createdAt: 'desc' } },
       },
     });
   }
 
-  /* ================================================================
-   * LEADS INBOX — client-centric, no duplicates
-   * ================================================================ */
+  // ── LEADS INBOX ─────────────────────────────────────────────────────────────
+  // OWNER: all clients in workspace
+  // BROKER: own clients + unassigned pool (ownerId = null)
 
-  async getLeadsInbox(workspaceId: string) {
+  async getLeadsInbox(ctx: CallerContext) {
+    const where = this.clientScopeWhere(ctx);
+
     const clients = await this.prisma.client.findMany({
-      where: { workspaceId },          // ← workspace guard
+      where,
       include: {
         phones: true,
+        owner:  { select: { id: true, name: true } },
         properties: {
           orderBy: { sharedAt: 'desc' },
           include: { listing: true },
         },
       },
+      orderBy: { createdAt: 'desc' },
     });
 
     const rows = clients.map((client) => {
@@ -105,17 +153,21 @@ export class ClientsService {
           ? new Date(Math.min(...followUps.map((d) => d.getTime())))
           : null;
 
-      const primaryPhone = client.phones.find((p) => p.primary)?.phone
-        ?? client.phones[0]?.phone
-        ?? '';
+      const primaryPhone =
+        client.phones.find((p) => p.primary)?.phone ??
+        client.phones[0]?.phone ?? '';
 
       return {
-        clientId:           client.id,
-        name:               client.name,
-        phone:              primaryPhone,
-        propertiesCount:    client.properties.length,
-        requirementLabel:   this.buildRequirementLabel(client.properties),
+        clientId:         client.id,
+        name:             client.name,
+        phone:            primaryPhone,
+        propertiesCount:  client.properties.length,
+        requirementLabel: this.buildRequirementLabel(client.properties),
         nearestFollowUpAt,
+        // Show who owns this client — useful for owner's view
+        owner:     client.owner,
+        // V1: isPool hidden — uncomment when Lead Pool UI is restored
+        // isPool: client.ownerId === null,
       };
     });
 
@@ -128,27 +180,128 @@ export class ClientsService {
     return rows;
   }
 
-  /* ================================================================
-   * CLIENT ↔ LISTING
-   * ================================================================ */
+  async setClientFollowUp(
+  ctx: CallerContext,
+  clientId: string,
+  followUpAt: string | null,
+) {
+  await this.assertClientAccess(ctx, clientId);
+  // Sets followUpAt on the most recently active ClientProperty
+  const cp = await this.prisma.clientProperty.findFirst({
+    where: { client: { id: clientId, workspaceId: ctx.workspaceId } },
+    orderBy: { lastActionAt: 'desc' },
+    select: { id: true },
+  });
+  if (!cp) throw new NotFoundException('No properties linked to this client');
 
-  async shareProperty(
-    workspaceId: string,
-    clientId:    string,
-    listingId:   string,   // was propertyId — now WorkspaceListing.id
-  ) {
-    // Guard: client must belong to this workspace
-    const client = await this.prisma.client.findFirst({
-      where: { id: clientId, workspaceId },
+  const updated = await this.prisma.clientProperty.update({
+  where: { id: cp.id },
+  data:  { followUpAt: followUpAt ? new Date(followUpAt) : null },
+  select: { id: true, followUpAt: true, clientId: true },
+});
+
+await this.createEvent(updated.clientId, 'FOLLOW_UP_SET', {
+  followUpAt,
+  clearedAt: followUpAt ? null : new Date().toISOString(),
+});
+
+return updated;
+}
+
+  // ── LEAD POOL ───────────────────────────────────────────────────────────────
+  // Unassigned clients — any broker can claim them.
+
+  async getLeadPool(ctx: CallerContext) {
+    return this.prisma.client.findMany({
+      where: { workspaceId: ctx.workspaceId, ownerId: null },
+      include: {
+        phones: true,
+        properties: {
+          include: { listing: true },
+          orderBy: { sharedAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
     });
-    if (!client) throw new Error('Client not found in workspace');
+  }
+
+  // ── CLAIM LEAD ──────────────────────────────────────────────────────────────
+  // Broker claims an unassigned lead from the pool.
+
+  async claimLead(ctx: CallerContext, clientId: string) {
+    const client = await this.prisma.client.findFirst({
+      where: { id: clientId, workspaceId: ctx.workspaceId },
+      select: { id: true, ownerId: true },
+    });
+
+    if (!client) throw new NotFoundException('Client not found');
+
+    if (client.ownerId !== null && client.ownerId !== ctx.userId) {
+      throw new ForbiddenException('This lead is already claimed by another broker');
+    }
+
+    return this.prisma.client.update({
+      where: { id: clientId },
+      data:  { ownerId: ctx.userId },
+      select: { id: true, ownerId: true },
+    });
+  }
+
+  // ── REASSIGN CLIENT ─────────────────────────────────────────────────────────
+  // Owner can reassign any client to any broker.
+
+  async reassignClient(
+    ctx:       CallerContext,
+    clientId:  string,
+    toUserId:  string | null,  // null = return to pool
+  ) {
+    if (ctx.role !== MemberRole.OWNER) {
+      throw new ForbiddenException('Only workspace owners can reassign clients');
+    }
+
+    const client = await this.prisma.client.findFirst({
+      where:  { id: clientId, workspaceId: ctx.workspaceId },
+      select: { id: true },
+    });
+    if (!client) throw new NotFoundException('Client not found');
+
+    // Verify target broker is in the workspace (if not returning to pool)
+    if (toUserId !== null) {
+      const member = await this.prisma.workspaceMember.findFirst({
+        where: { workspaceId: ctx.workspaceId, userId: toUserId },
+      });
+      if (!member) throw new NotFoundException('Broker not found in workspace');
+    }
+
+    const updated = await this.prisma.client.update({
+      where: { id: clientId },
+      data:  { ownerId: toUserId },
+      select: { id: true, ownerId: true, name: true },
+    });
+
+    await this.createEvent(clientId, 'CLIENT_REASSIGNED', {
+      fromUserId: null,
+      toUserId,
+      byUserId:   ctx.userId,
+    });
+
+    return updated;
+  }
+
+  // ── CLIENT ↔ LISTING ────────────────────────────────────────────────────────
+
+  async shareProperty(ctx: CallerContext, clientId: string, listingId: string) {
+    await this.assertClientAccess(ctx, clientId);
 
     const cp = await this.prisma.clientProperty.upsert({
-      where: {
-        clientId_listingId: { clientId, listingId },
-      },
+      where:  { clientId_listingId: { clientId, listingId } },
       update: { lastActionAt: new Date() },
-      create:  { clientId, listingId },
+      create: {
+        clientId,
+        listingId,
+        assignedTo: ctx.userId,   // ← broker who shared it owns this lead
+      },
     });
 
     await this.createEvent(clientId, 'PROPERTY_SHARED', { listingId });
@@ -156,18 +309,23 @@ export class ClientsService {
   }
 
   async updateClientPropertyStatus(
-    workspaceId:       string,
+    ctx:               CallerContext,
     clientPropertyId:  string,
     status:            LeadStage,
   ) {
-    // Resolve and guard
     const cp = await this.prisma.clientProperty.findFirst({
       where: {
-        id: clientPropertyId,
-        client: { workspaceId },     // ← workspace guard via relation
+        id:     clientPropertyId,
+        client: { workspaceId: ctx.workspaceId },
       },
+      select: { id: true, clientId: true, listingId: true, assignedTo: true },
     });
-    if (!cp) throw new Error('ClientProperty not found');
+    if (!cp) throw new NotFoundException('ClientProperty not found');
+
+    // BROKER can only update their own assigned leads
+    if (ctx.role !== MemberRole.OWNER && cp.assignedTo !== ctx.userId) {
+      throw new ForbiddenException('This lead is assigned to another broker');
+    }
 
     const updated = await this.prisma.clientProperty.update({
       where: { id: clientPropertyId },
@@ -175,23 +333,19 @@ export class ClientsService {
     });
 
     await this.createEvent(updated.clientId, 'STATUS_CHANGED', {
-      listingId: updated.listingId,
-      status,
+      listingId: updated.listingId, status,
     });
 
     return updated;
   }
 
   async updateClientPropertyClientStatus(
+    ctx:              CallerContext,
     clientPropertyId: string,
-    clientStatus: ClientPropertyStatus,
-    workspaceId: string,
+    clientStatus:     ClientPropertyStatus,
   ) {
     const cp = await this.prisma.clientProperty.findFirst({
-      where: {
-        id: clientPropertyId,
-        listing: { workspaceId },
-      },
+      where: { id: clientPropertyId, listing: { workspaceId: ctx.workspaceId } },
     });
     if (!cp) throw new NotFoundException('ClientProperty not found');
 
@@ -202,79 +356,58 @@ export class ClientsService {
   }
 
   async updateClientPropertyFollowUp(
-    workspaceId:      string,
+    ctx:              CallerContext,
     clientPropertyId: string,
     followUpAt:       string,
   ) {
     const cp = await this.prisma.clientProperty.findFirst({
-      where: { id: clientPropertyId, client: { workspaceId } },
+      where: { id: clientPropertyId, client: { workspaceId: ctx.workspaceId } },
     });
-    if (!cp) throw new Error('ClientProperty not found');
+    if (!cp) throw new NotFoundException('ClientProperty not found');
 
-    const date = new Date(followUpAt);
-
+    const date = followUpAt ? new Date(followUpAt) : null;
     const updated = await this.prisma.clientProperty.update({
       where: { id: clientPropertyId },
       data:  { followUpAt: date, lastActionAt: new Date() },
+
     });
 
     await this.createEvent(updated.clientId, 'FOLLOW_UP_SET', {
-      listingId: updated.listingId,
-      followUpAt: date,
+      listingId: updated.listingId, followUpAt: date,
     });
 
     return updated;
   }
 
-  /* ================================================================
-   * NOTES
-   * ================================================================ */
+  // ── FOLLOW-UPS ──────────────────────────────────────────────────────────────
 
-  async addNote(workspaceId: string, clientId: string, note: string) {
-    // Guard
-    const client = await this.prisma.client.findFirst({
-      where: { id: clientId, workspaceId },
-    });
-    if (!client) throw new Error('Client not found');
-    return this.createEvent(clientId, 'NOTE_ADDED', { note });
-  }
-
-  /* ================================================================
-   * FOLLOW-UPS (dashboard)
-   * ================================================================ */
-
-  async getFollowUpsToday(workspaceId: string) {
+  async getFollowUpsToday(ctx: CallerContext) {
     const today = new Date(); today.setHours(0, 0, 0, 0);
+    const clientWhere = this.clientScopeWhere(ctx);
 
     const rows = await this.prisma.clientProperty.findMany({
       where: {
         followUpAt: { lte: today },
-        client: { workspaceId },          // ← workspace guard
+        client:     clientWhere,     // ← scoped to caller's visible clients
       },
-      include: {
-        client:  true,
-        listing: true,
-      },
+      include: { client: true, listing: true },
       orderBy: { followUpAt: 'asc' },
     });
 
     return this.mapFollowUps(rows);
   }
 
-  async getUpcomingFollowUps(workspaceId: string) {
+  async getUpcomingFollowUps(ctx: CallerContext) {
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const end   = new Date(today);
-    end.setDate(end.getDate() + 7);
+    const end   = new Date(today); end.setDate(end.getDate() + 7);
+    const clientWhere = this.clientScopeWhere(ctx);
 
     const rows = await this.prisma.clientProperty.findMany({
       where: {
         followUpAt: { gt: today, lte: end },
-        client: { workspaceId },          // ← workspace guard
+        client:     clientWhere,
       },
-      include: {
-        client:  true,
-        listing: true,
-      },
+      include: { client: true, listing: true },
       orderBy: { followUpAt: 'asc' },
     });
 
@@ -283,22 +416,24 @@ export class ClientsService {
 
   private mapFollowUps(rows: any[]) {
     return rows.map((r) => ({
-      clientId:    r.clientId,
-      clientName:  r.client.name,
-      followUpAt:  r.followUpAt,
-      property:    r.listing,           // frontend key kept as 'property' for compat
+      clientId:   r.clientId,
+      clientName: r.client.name,
+      followUpAt: r.followUpAt,
+      property:   r.listing,
     }));
   }
 
-  /* ================================================================
-   * WHATSAPP
-   * ================================================================ */
+  // ── NOTES ───────────────────────────────────────────────────────────────────
 
-  async getWhatsappOptions(workspaceId: string, clientId: string) {
-    const client = await this.prisma.client.findFirst({
-      where: { id: clientId, workspaceId },
-    });
-    if (!client) throw new Error('Client not found');
+  async addNote(ctx: CallerContext, clientId: string, note: string) {
+    await this.assertClientAccess(ctx, clientId);
+    return this.createEvent(clientId, 'NOTE_ADDED', { note });
+  }
+
+  // ── WHATSAPP ────────────────────────────────────────────────────────────────
+
+  async getWhatsappOptions(ctx: CallerContext, clientId: string) {
+    await this.assertClientAccess(ctx, clientId);
 
     const cps = await this.prisma.clientProperty.findMany({
       where: {
@@ -312,35 +447,29 @@ export class ClientsService {
     return cps.map((cp) => ({
       clientPropertyId: cp.id,
       label: [cp.listing.bhk, cp.listing.propertySubType, cp.listing.area, cp.listing.city]
-        .filter(Boolean)
-        .join(' '),
+        .filter(Boolean).join(' '),
       price:      cp.listing.price,
       followUpAt: cp.followUpAt,
       status:     cp.status,
     }));
   }
 
-  async getWhatsappDraft(workspaceId: string, clientPropertyId: string) {
+  async getWhatsappDraft(ctx: CallerContext, clientPropertyId: string) {
     const cp = await this.prisma.clientProperty.findFirst({
-      where: {
-        id: clientPropertyId,
-        client: { workspaceId },
-      },
+      where: { id: clientPropertyId, client: { workspaceId: ctx.workspaceId } },
       include: { client: true, listing: true },
     });
-
-    if (!cp) throw new Error('ClientProperty not found');
+    if (!cp) throw new NotFoundException('ClientProperty not found');
 
     return { message: this.generateWhatsappDraft(cp.client, cp) };
   }
 
-  async markWhatsappSent(workspaceId: string, clientPropertyId: string) {
+  async markWhatsappSent(ctx: CallerContext, clientPropertyId: string) {
     const now = new Date();
-
-    const cp = await this.prisma.clientProperty.findFirst({
-      where: { id: clientPropertyId, client: { workspaceId } },
+    const cp  = await this.prisma.clientProperty.findFirst({
+      where: { id: clientPropertyId, client: { workspaceId: ctx.workspaceId } },
     });
-    if (!cp) throw new Error('ClientProperty not found');
+    if (!cp) throw new NotFoundException('ClientProperty not found');
 
     let followUpAt = cp.followUpAt;
     if (!followUpAt || followUpAt <= now) {
@@ -351,10 +480,10 @@ export class ClientsService {
     const updated = await this.prisma.clientProperty.update({
       where: { id: clientPropertyId },
       data: {
-        status:         LeadStage.CONTACTED,
+        status:          LeadStage.CONTACTED,
         lastContactedAt: now,
         followUpAt,
-        lastActionAt:   now,
+        lastActionAt:    now,
       },
     });
 
@@ -374,50 +503,91 @@ export class ClientsService {
     return `Hi ${name}, following up regarding the ${label}. Let me know how you'd like to proceed.`;
   }
 
-  /* ================================================================
-   * EVENTS (internal)
-   * ================================================================ */
+  // ── SHARE TOKEN ─────────────────────────────────────────────────────────────
 
-  private async createEvent(
-    clientId: string,
-    type:     string,
-    metadata?: Record<string, any>,
-  ) {
-    return this.prisma.clientEvent.create({
-      data: { clientId, type, metadata: metadata ?? {} },
-    });
-  }
-
-  async createShareToken(
-    clientId: string,
-    workspaceId: string,
-  ): Promise<{ url: string; expiresAt: Date }> {
-    // Verify the client exists and belongs to this workspace
+  async createShareToken(clientId: string, workspaceId: string) {
     const client = await this.prisma.client.findFirst({
       where: { id: clientId, workspaceId },
       select: { id: true },
     });
     if (!client) throw new NotFoundException('Client not found');
-  
-    // Replace any existing token for this client+workspace (refresh)
+
     await this.prisma.clientShareToken.deleteMany({
       where: { clientId, workspaceId },
     });
-  
+
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7-day expiry
-  
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
     const shareToken = await this.prisma.clientShareToken.create({
       data: { clientId, workspaceId, expiresAt },
     });
-  
-    const frontendUrl =
-      this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3001';
-  
+
+    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3001';
+    return { url: `${frontendUrl}/share/${shareToken.token}`, expiresAt };
+  }
+
+  async createShareTokenByPhone(
+    phone:       string,
+    workspaceId: string,
+    userId:      string,
+    name?:       string,
+  ) {
+    const normalised = phone.replace(/\D/g, '');
+
+    let client = await this.prisma.client.findFirst({
+      where: {
+        workspaceId,
+        phones: { some: { phone: { in: [normalised, phone] } } },
+      },
+      select: { id: true, name: true },
+    });
+
+    let isNew = false;
+
+    if (!client) {
+      client = await this.prisma.client.create({
+        data: {
+          workspaceId,
+          name:    name?.trim() || null,
+          ownerId: userId,      // ← assigned to the broker who created via WhatsApp
+          phones:  { create: { phone: normalised, primary: true } },
+        },
+        select: { id: true, name: true },
+      });
+      isNew = true;
+    } else if (name?.trim() && !client.name) {
+      await this.prisma.client.update({
+        where: { id: client.id },
+        data:  { name: name.trim() },
+      });
+    }
+
+    await this.prisma.clientShareToken.deleteMany({
+      where: { clientId: client.id, workspaceId },
+    });
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    const shareToken = await this.prisma.clientShareToken.create({
+      data: { clientId: client.id, workspaceId, expiresAt },
+    });
+
+    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
     return {
       url: `${frontendUrl}/share/${shareToken.token}`,
       expiresAt,
+      clientId: client.id,
+      isNew,
     };
   }
 
+  // ── EVENTS ──────────────────────────────────────────────────────────────────
+
+  private async createEvent(clientId: string, type: string, metadata?: Record<string, any>) {
+    return this.prisma.clientEvent.create({
+      data: { clientId, type, metadata: metadata ?? {} },
+    });
+  }
 }

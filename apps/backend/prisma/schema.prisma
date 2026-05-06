@@ -154,6 +154,13 @@ enum ClientPropertyStatus {
   SHORTLISTED
 }
 
+enum AvailabilityStatus {
+  AVAILABLE          // actively listed, can be shown to clients
+  UNDER_NEGOTIATION  // deal in progress — show with caution
+  CLOSED             // sold or rented — no longer available
+  ON_HOLD            // temporarily paused by broker
+}
+
 enum BrokerType {
   OWNER
   BROKER
@@ -206,7 +213,8 @@ model Workspace {
   invoices      Invoice[]
   flagOverrides FeatureFlagOverride[]
 
-  shareTokens  ClientShareToken[]
+  shareTokens       ClientShareToken[]
+  groupSubscriptions GroupSubscription[]
 
   // CRM data
   messages   Message[]
@@ -230,6 +238,8 @@ model User {
   name         String?
   phone        String?
   avatarUrl    String?
+
+  ownedClients  Client[]  @relation("ClientOwner")
 
   platformRole PlatformRole @default(USER)
 
@@ -465,12 +475,14 @@ model WorkspaceListing {
 
   confidence  Float        @default(0)
   status      PropertyStatus?
-  availability String       @default("AVAILABLE")
+  availability AvailabilityStatus @default(AVAILABLE)
 
   sourceGroup  String?
   duplicateOf  String?   // raw hint from ingestion, before dedup resolution
 
   notes String?
+  lastActivityAt DateTime @default(now())
+  lastSeenAt     DateTime @default(now())
 
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
@@ -487,6 +499,8 @@ model WorkspaceListing {
   @@index([workspaceId, status])
   @@index([workspaceId, createdAt])
   @@index([areaId])
+
+
 }
 
 /// Records when the system detects two WorkspaceListings are probably the same
@@ -541,6 +555,7 @@ model PropertyDeal {
   initiatorListingId  String
   // The client who is buying/renting
   clientId            String?   // Client.id from whichever workspace found them
+  client    Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
   status      DealStatus @default(INITIATED)
 
@@ -858,10 +873,11 @@ model Area {
 // ============================================================
 
 model Message {
-  id         String    @id @default(uuid())
+ id         String    @id @default(uuid())
   groupName  String
   messageKey String    @unique
   rawText    String
+  sender     String?
   receivedAt DateTime  @default(now())
 
   workspaceId String
@@ -872,6 +888,20 @@ model Message {
   @@index([workspaceId])
   @@index([workspaceId, receivedAt])
 }
+
+// Add to schema.prisma
+
+model MessageCache {
+  id          String   @id @default(cuid())
+  hash        String   @unique
+  messageId   String
+  workspaceId String
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId])
+  @@map("message_cache")
+}
+
 
 model IngestionLog {
   id          String   @id @default(uuid())
@@ -1026,14 +1056,21 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+                              // null = unassigned (visible to all brokers = lead pool)
+  ownerId   String?           // User.id of the broker who owns this client
+  owner     User?   @relation("ClientOwner", fields: [ownerId], references: [id])
+
   phones      ClientPhone[]
   properties  ClientProperty[]
   events      ClientEvent[]
+
+  deals  PropertyDeal[]
 
   shareTokens  ClientShareToken[]
 
   @@unique([workspaceId, id])
   @@index([workspaceId])
+  @@index([workspaceId, ownerId])
 }
 
 model ClientPhone {
@@ -1059,6 +1096,9 @@ model ClientProperty {
 
   listingId String
   listing   WorkspaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  assignedTo  String?
+
 
   // Lead tracking lives here — not on the listing
   status          LeadStage @default(NEW)
@@ -1088,3 +1128,47 @@ model ClientEvent {
   @@index([clientId])
   @@index([clientId, createdAt])
 }
+
+
+model IngestionPhone {
+  id          String   @id @default(cuid())
+  phone       String   @unique
+  displayName String?
+  active      Boolean  @default(true)
+  sessionPath String
+  qrCode      String?
+  createdAt   DateTime @default(now())
+  groups      IngestionGroup[]
+}
+
+model IngestionGroup {
+  id               String         @id @default(cuid())
+  groupJid         String
+  groupName        String
+  ingestionPhoneId String
+  phone            IngestionPhone @relation(fields: [ingestionPhoneId], references: [id])
+  subscriptions    GroupSubscription[]
+  @@unique([groupJid, ingestionPhoneId])
+}
+
+model GroupSubscription {
+  id          String         @id @default(cuid())
+  groupId     String
+  workspaceId String
+  active      Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  group       IngestionGroup @relation(fields: [groupId], references: [id])
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id])
+  @@unique([groupId, workspaceId])
+}
+
+model GlobalMessageCache {
+  id        String   @id @default(cuid())
+  hash      String   @unique
+  aiResult  Json
+  hitCount  Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+
+

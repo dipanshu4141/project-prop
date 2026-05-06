@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(req: Request) {
   const res = await fetch(
     `${process.env.BACKEND_URL}/properties/leads/followups-overdue`,
-    { cache: "no-store" }
+    { cache: "no-store", headers: { cookie: req.headers.get("cookie") ?? "", authorization: req.headers.get("authorization") ?? "" } }
   );
 
   if (!res.ok) {

@@ -1,104 +1,86 @@
-"use client";
+// apps/dashboard/src/app/v2/admin/layout.tsx
+//
+// This layout wraps ALL /v2/admin/* pages.
+// It renders FULL-SCREEN (no main app sidebar) by using a portal-style
+// approach: the layout sits inside /v2/ but overrides the visual chrome
+// using fixed positioning + a white overlay that covers the parent sidebar.
+//
+// Simpler alternative used here: a top nav bar replaces the second sidebar.
+// The main /v2/ layout sidebar still shows — that's intentional and matches
+// your screenshot's left nav. What we remove is the SECOND inline column
+// that was being rendered by the old admin pages.
 
-import { useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import {
-  LayoutDashboard, Building2, Users, CreditCard,
-  ScrollText, ChevronLeft, ShieldAlert,
-} from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { cookies } from 'next/headers';
 
-const NAV = [
-  { href: '/admin',               label: 'Overview',       icon: LayoutDashboard },
-  { href: '/admin/workspaces',    label: 'Workspaces',     icon: Building2       },
-  { href: '/admin/users',         label: 'Users',          icon: Users           },
-  { href: '/admin/subscriptions', label: 'Subscriptions',  icon: CreditCard      },
-  { href: '/admin/audit',         label: 'Audit log',      icon: ScrollText      },
+const ADMIN_NAV = [
+  { label: 'Overview',      href: '/v2/admin'                  },
+  { label: 'Properties',    href: '/v2/admin/properties'       },
+  { label: 'Workspaces',    href: '/v2/admin/workspaces'       },
+  { label: 'Users',         href: '/v2/admin/users'            },
+  { label: 'Subscriptions', href: '/v2/admin/subscriptions'    },
+  { label: 'Audit log',     href: '/v2/admin/audit'            },
+  { label: 'Ingestion',     href: '/v2/admin/ingestion'        },
 ];
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  const router   = useRouter();
-  const pathname = usePathname();
-
-  /* Guard — only SUPERADMIN and SUPPORT can enter */
-  useEffect(() => {
-    if (!loading && user && user.platformRole === 'USER') {
-      router.replace('/v2/dashboard');
-    }
-    if (!loading && !user) {
-      router.replace('/login');
-    }
-  }, [user, loading, router]);
-
-  if (loading || !user || user.platformRole === 'USER') {
-    return (
-      <div className="min-h-screen bg-[#F7F5F0] flex items-center justify-center">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />
-      </div>
-    );
-  }
-
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex min-h-screen bg-[#F7F5F0]">
+    <div className="min-h-screen" style={{ background: '#F7F5F0' }}>
 
-      {/* ── SIDEBAR ── */}
-      <aside className="w-56 shrink-0 flex flex-col bg-[#0B1F14] text-white h-screen sticky top-0">
+      {/* ── Admin top bar ── */}
+      <div
+        className="sticky top-0 z-20 border-b"
+        style={{ background: '#0B1F14', borderColor: 'rgba(255,255,255,0.08)' }}
+      >
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center gap-1 h-11">
 
-        {/* Header */}
-        <div className="h-16 flex items-center gap-2.5 px-5 border-b border-white/10 flex-shrink-0">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500 flex-shrink-0">
-            <ShieldAlert className="h-4 w-4 text-white" />
-          </div>
-          <div>
-            <p className="text-[13.5px] font-semibold text-white leading-tight">Admin</p>
-            <p className="text-[10px] text-white/40">Platform control</p>
-          </div>
-        </div>
+            {/* Platform label */}
+            <div className="flex items-center gap-2 mr-6">
+              <div
+                className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold"
+                style={{ background: 'rgba(255,255,255,0.15)', color: '#fff' }}
+              >
+                ⚡
+              </div>
+              <span className="text-xs font-bold text-white/60 uppercase tracking-widest">
+                Platform Admin
+              </span>
+            </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-5 space-y-0.5">
-          {NAV.map((item) => {
-            const Icon   = item.icon;
-            const active = pathname === item.href || pathname.startsWith(item.href + '/');
-            return (
+            {/* Nav links */}
+            {ADMIN_NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={[
-                  'flex items-center gap-2.5 h-9 rounded-lg px-3 text-[13px] font-medium transition-colors relative',
-                  active
-                    ? 'bg-white/10 text-white'
-                    : 'text-white/50 hover:text-white/90 hover:bg-white/5',
-                ].join(' ')}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white/60 hover:text-white hover:bg-white/10 transition-colors"
               >
-                {active && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-red-400" />
-                )}
-                <Icon className={`h-4 w-4 ${active ? 'text-red-400' : 'text-white/40'}`} />
                 {item.label}
               </Link>
-            );
-          })}
-        </nav>
+            ))}
 
-        {/* Back to app */}
-        <div className="p-3 border-t border-white/10 flex-shrink-0">
-          <Link
-            href="/v2/dashboard"
-            className="flex items-center gap-2 h-9 rounded-lg px-3 text-[12.5px] text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-            Back to app
-          </Link>
+            {/* Back to app */}
+            <Link
+              href="/v2/properties"
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M7.5 2L3.5 6l4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Back to app
+            </Link>
+          </div>
         </div>
-      </aside>
+      </div>
 
-      {/* ── MAIN ── */}
-      <main className="flex-1 min-w-0 overflow-y-auto">
+      {/* ── Page content ── */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
         {children}
-      </main>
+      </div>
     </div>
   );
 }

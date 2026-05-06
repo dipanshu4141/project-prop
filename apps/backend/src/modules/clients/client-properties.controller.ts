@@ -14,10 +14,14 @@ export class ClientPropertiesController {
     @Body() body: { clientStatus: ClientPropertyStatus },
     @Request() req: any,
   ) {
-    return this.clientsService.updateClientPropertyStatus(
-      id,
-      body.clientStatus,
-      req.user.workspaceId,
-    );
+    return this.clientsService.updateClientPropertyClientStatus(
+    {
+      workspaceId: req.user.workspaceId,
+      userId:      req.user.sub,
+      role:        req.user.role,
+    },
+    id,
+    body.clientStatus,
+  );
   }
 }

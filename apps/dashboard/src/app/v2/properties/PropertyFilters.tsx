@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, X, ChevronDown } from "lucide-react";
+import { createPortal } from "react-dom";
 
 /* ------------------------------------------------------------------ */
 /* TYPES                                                               */
@@ -31,7 +32,6 @@ export type PropertyFiltersValue = {
 type Props = {
   value: PropertyFiltersValue;
   onChange: (v: PropertyFiltersValue) => void;
-  /** kept for API compatibility — unused */
   isOpen?: boolean;
   onToggle?: () => void;
 };
@@ -160,6 +160,10 @@ function MultiPillToggle({
 
 /* ------------------------------------------------------------------ */
 /* DROPDOWN PANEL                                                      */
+/*                                                                     */
+/* Uses position:fixed for the panel so the parent's overflow-x:auto  */
+/* (needed for horizontal pill scrolling) cannot clip it.             */
+/* Position is calculated from the trigger button's bounding rect.    */
 /* ------------------------------------------------------------------ */
 
 function DropdownPanel({
@@ -172,12 +176,25 @@ function DropdownPanel({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [panelPos, setPanelPos] = useState({ top: 0, left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
   const hasActive = (badge ?? 0) > 0;
+
+  function handleToggle() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      // Clamp left so panel never overflows right edge of viewport
+      const left = Math.min(r.left, window.innerWidth - 276);
+      setPanelPos({ top: r.bottom + 6, left });
+    }
+    setOpen((v) => !v);
+  }
 
   return (
     <div className="relative flex-shrink-0">
       <button
-        onClick={() => setOpen((v) => !v)}
+        ref={btnRef}
+        onClick={handleToggle}
         className={[
           "flex items-center gap-1.5 h-8 rounded-lg px-3 text-xs font-semibold border whitespace-nowrap transition-all duration-150",
           open || hasActive
@@ -197,13 +214,17 @@ function DropdownPanel({
         )}
       </button>
 
-      {open && (
+      {open && typeof document !== 'undefined' && createPortal(
         <>
-          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-          <div className="absolute top-full left-0 mt-1.5 z-30 bg-white rounded-xl border border-slate-200 shadow-xl p-4 min-w-[260px]">
+          <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-[101] bg-white rounded-xl border border-slate-200 shadow-xl p-4 min-w-[260px]"
+            style={{ top: panelPos.top, left: panelPos.left }}
+          >
             {children}
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );
@@ -276,12 +297,7 @@ export default function PropertyFilters({ value, onChange }: Props) {
   const priceActive  = draft.minPrice || draft.maxPrice ? 1 : 0;
 
   return (
-    <div className="w-full bg-white border-b border-slate-100 sticky top-0 z-10 rounded-t-lg">
-      {/*
-        overflow-x-auto  — pills scroll horizontally on narrow screens instead of wrapping
-        flex-nowrap      — single row, no wrapping
-        scrollbar-none   — hides scrollbar on webkit/firefox
-      */}
+    <div className="w-full bg-white border-b border-slate-100 sticky top-0 rounded-t-lg">
       <div className="flex items-center gap-2 px-6 py-3 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
 
         {/* ── LISTING TYPE ── */}
@@ -320,7 +336,6 @@ export default function PropertyFilters({ value, onChange }: Props) {
               />
             </DropdownPanel>
 
-            {/* ── FURNISHING ── */}
             <DropdownPanel label="Furnishing" badge={furnActive}>
               <SectionLabel>Furnishing type</SectionLabel>
               <MultiPillToggle
@@ -444,20 +459,14 @@ export default function PropertyFilters({ value, onChange }: Props) {
 
         <Divider />
 
-        {/* ── SEARCH — ml-auto pushes it to the far right ── */}
+        {/* ── SEARCH ── */}
         <div className="relative ml-auto flex-shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           <input
             placeholder="Area, building, city…"
             value={draft.q ?? ""}
             onChange={(e) => update("q", e.target.value || undefined)}
-            className="
-              h-8 pl-8 pr-3 w-48 rounded-lg border border-slate-200
-              text-xs text-slate-700 placeholder:text-slate-400
-              bg-slate-50 focus:bg-white focus:outline-none
-              focus:border-slate-400 focus:w-56
-              transition-all duration-200
-            "
+            className="h-8 pl-8 pr-3 w-48 rounded-lg border border-slate-200 text-xs text-slate-700 placeholder:text-slate-400 bg-slate-50 focus:bg-white focus:outline-none focus:border-slate-400 focus:w-56 transition-all duration-200"
           />
         </div>
 

@@ -3,14 +3,14 @@ import { NextResponse } from "next/server";
 const BACKEND_URL = process.env.BACKEND_URL!;
 
 export async function POST(
-  _req: Request,
+  req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await context.params;
 
     const res = await fetch(
-      `${BACKEND_URL}/clients/client-property/${id}/whatsapp-sent`,
+      `${BACKEND_URL}/api/clients/client-property/${id}/whatsapp-sent`,
       { method: "POST" }
     );
 

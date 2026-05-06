@@ -1,22 +1,28 @@
+// apps/backend/src/modules/team/team.controller.ts
+
 import {
   Controller, Get, Post, Patch, Delete,
-  Param, Body, Query, UseGuards, HttpCode, HttpStatus,
+  Param, Body, Query,
+  UseGuards, HttpCode, HttpStatus,
 } from '@nestjs/common';
-import { TeamService } from './team.service';
+import { TeamService }       from './team.service';
 import { JwtAuthGuard, RolesGuard } from '../../auth/guards/auth.guards';
-import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { Roles } from '../../auth/decorators/roles.decorator';
-import { JwtPayload } from '../../auth/jwt-payload.interface';
-import { MemberRole } from '@prisma/client';
+import { CurrentUser }       from '../../auth/decorators/current-user.decorator';
+import { Roles }             from '../../auth/decorators/roles.decorator';
+import { JwtPayload }        from '../../auth/jwt-payload.interface';
+import { MemberRole }        from '@prisma/client';
+
+/* ====================================================================
+ * TEAM CONTROLLER  —  /team/*
+ * All routes require JWT auth. Owner-only routes also require RolesGuard.
+ * ==================================================================== */
 
 @Controller('team')
 @UseGuards(JwtAuthGuard)
 export class TeamController {
-  constructor(private team: TeamService) {}
+  constructor(private readonly team: TeamService) {}
 
-  /* ================================================================
-   * MEMBERS
-   * ================================================================ */
+  // ── Members ──────────────────────────────────────────────────────────
 
   @Get('members')
   getMembers(@CurrentUser() user: JwtPayload) {
@@ -31,12 +37,7 @@ export class TeamController {
     @Param('memberId') memberId: string,
     @Body() body: { role: MemberRole },
   ) {
-    return this.team.updateMemberRole(
-      user.workspaceId,
-      memberId,
-      body.role,
-      user.sub,
-    );
+    return this.team.updateMemberRole(user.workspaceId, memberId, body.role, user.sub);
   }
 
   @Delete('members/:memberId')
@@ -50,9 +51,7 @@ export class TeamController {
     return this.team.removeMember(user.workspaceId, memberId, user.sub);
   }
 
-  /* ================================================================
-   * INVITES
-   * ================================================================ */
+  // ── Invites ───────────────────────────────────────────────────────────
 
   @Get('invites')
   @UseGuards(RolesGuard)
@@ -76,6 +75,22 @@ export class TeamController {
     );
   }
 
+  /**
+   * POST /team/invites/:inviteId/resend
+   * Resets the expiry and re-sends the invite email.
+   * Owner only.
+   */
+  @Post('invites/:inviteId/resend')
+  @UseGuards(RolesGuard)
+  @Roles(MemberRole.OWNER)
+  @HttpCode(HttpStatus.OK)
+  resendInvite(
+    @CurrentUser() user: JwtPayload,
+    @Param('inviteId') inviteId: string,
+  ) {
+    return this.team.resendInvite(user.workspaceId, inviteId);
+  }
+
   @Delete('invites/:inviteId')
   @UseGuards(RolesGuard)
   @Roles(MemberRole.OWNER)
@@ -88,28 +103,33 @@ export class TeamController {
   }
 }
 
-/* ================================================================
- * INVITE ACCEPT — public-ish route (requires auth, not role)
+/* ====================================================================
+ * INVITE CONTROLLER  —  /invites/*
+ * Public-ish: requires auth but NOT owner role.
  * The invitee must be logged in (or register first) before accepting.
- * ================================================================ */
+ * ==================================================================== */
 
 @Controller('invites')
-@UseGuards(JwtAuthGuard)
 export class InviteController {
-  constructor(private team: TeamService) {}
+  constructor(private readonly team: TeamService) {}
 
   /**
    * GET /invites/info?token=xxx
-   * Fetch invite details so the frontend can show workspace name + role
-   * before the user clicks "Accept".
+   * PUBLIC — no auth required.
+   * Returns workspace name + role so the frontend can show the
+   * invite details before the user logs in and clicks "Accept".
    */
   @Get('info')
   getInviteInfo(@Query('token') token: string) {
     return this.team.getInviteByToken(token);
   }
 
-  /** POST /invites/accept — accept an invite by token */
+  /**
+   * POST /invites/accept
+   * Requires auth — the invitee must be logged in to accept.
+   */
   @Post('accept')
+  @UseGuards(JwtAuthGuard)
   acceptInvite(
     @CurrentUser() user: JwtPayload,
     @Body() body: { token: string },

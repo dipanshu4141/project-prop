@@ -6,14 +6,13 @@ const BACKEND_URL = process.env.BACKEND_URL!;
 /* GET PROPERTY */
 /* ------------------------------------------------ */
 
-export async function GET(
-  req: Request,
+export async function GET(req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await context.params;
 
-    const res = await fetch(`${BACKEND_URL}/properties/${id}`, {
+    const res = await fetch(`${BACKEND_URL}/api/properties/${id}`, {
       cache: "no-store",
       headers: {
         authorization: req.headers.get("authorization") ?? "",
@@ -46,7 +45,7 @@ export async function PATCH(
     const { id } = await context.params;
     const body = await req.json();
 
-    const res = await fetch(`${BACKEND_URL}/properties/${id}`, {
+    const res = await fetch(`${BACKEND_URL}/api/properties/${id}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",

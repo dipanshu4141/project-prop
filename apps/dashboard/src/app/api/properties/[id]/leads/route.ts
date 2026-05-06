@@ -2,14 +2,13 @@ import { NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.BACKEND_URL!;
 
-export async function GET(
-  req: Request,
+export async function GET(req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await context.params;
 
-    const res = await fetch(`${BACKEND_URL}/properties/${id}/leads`, {
+    const res = await fetch(`${BACKEND_URL}/api/properties/${id}/leads`, {
       cache: "no-store",
       headers: {
         authorization: req.headers.get("authorization") ?? "",

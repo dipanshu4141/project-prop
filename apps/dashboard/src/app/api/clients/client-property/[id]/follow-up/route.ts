@@ -1,21 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.BACKEND_URL!;
 
 export async function PATCH(
-  req: Request,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await context.params;
     const body = await req.json();
 
+    console.log('🍪 cookie being forwarded:', req.headers.get('cookie'));
     const res = await fetch(
-      `${BACKEND_URL}/clients/client-property/${id}/follow-up`,
+      `${BACKEND_URL}/api/clients/client-property/${id}/follow-up`,
       {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
+          cookie: (req as any).headers.get?.('cookie') ?? req.headers.get?.('cookie') ?? '',
         },
         body: JSON.stringify(body),
       }
