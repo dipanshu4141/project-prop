@@ -1,5 +1,6 @@
 # root dependencies
 /node_modules
+apps/backend/wa-session
 
 # logs
 *.log
@@ -11,4 +12,5 @@
 .env
 
 # Mac
-.DS_Store
+.DS_Store.turbo
+route.turbo/
