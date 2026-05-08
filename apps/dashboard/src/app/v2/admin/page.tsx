@@ -16,12 +16,12 @@ type HealthData = {
   signups: { today: number; last7d: number; last30d: number };
   workspaces: { total: number; activeLast7d: number };
   activity30d: {
-    messagesIngested: number;
-    listingsCreated: number;
-    clientsAdded: number;
-    sharePortalsSent: number;
-    sharePortalsViewed: number;
-  };
+      messagesIngested: number;
+      newProperties: number;
+      clientsAdded: number;
+      sharePortalsSent: number;
+      sharePortalsViewed: number;
+    };
   atRisk: {
     id: string;
     name: string;
@@ -154,8 +154,8 @@ export default function AdminOverviewPage() {
           color="bg-amber-400"
         />
         <StatCard
-          label="Listings created (30d)"
-          value={data.activity30d.listingsCreated}
+          label="New properties (30d)"
+          value={data.activity30d.newProperties}
           icon={LayoutDashboard}
           color="bg-sky-400"
         />

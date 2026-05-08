@@ -552,11 +552,31 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getSubscriptions(workspaceId: string) {
-    return this.prisma.groupSubscription.findMany({
+    const subs = await this.prisma.groupSubscription.findMany({
       where: { workspaceId },
       include: { group: { include: { phone: { select: { phone: true, displayName: true } } } } },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Enrich with property count and last listing time per group
+    const enriched = await Promise.all(subs.map(async (sub) => {
+      const listings = await this.prisma.workspaceListing.aggregate({
+        where: {
+          workspaceId,
+          message: { groupName: sub.group.groupName },
+        },
+        _count: { id: true },
+        _max:   { lastSeenAt: true },
+      });
+
+      return {
+        ...sub,
+        propertyCount:   listings._count.id,
+        lastListingAt:   listings._max.lastSeenAt ?? null,
+      };
+    }));
+
+    return enriched;
   }
 
   async subscribe(workspaceId: string, groupId: string) {
