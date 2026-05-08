@@ -12,8 +12,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source:      "/properties/:path*",
-        destination: "http://localhost:3000/properties/:path*",
+        source: "/api/:path*",
+        destination: `${process.env.BACKEND_URL}/api/:path*`,
       },
     ];
   },
