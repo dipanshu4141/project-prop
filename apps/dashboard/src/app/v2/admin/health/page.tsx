@@ -8,9 +8,9 @@ import { apiGet } from '@/lib/api';
 interface HealthData {
   signups: { today: number; last7d: number; last30d: number };
   workspaces: { total: number; activeLast7d: number };
-  activity30d: {
+ activity30d: {
+    newProperties: number;
     messagesIngested: number;
-    listingsCreated: number;
     clientsAdded: number;
     sharePortalsSent: number;
     sharePortalsViewed: number;
@@ -187,7 +187,7 @@ export default function AdminHealthPage() {
           <SectionTitle>Activity — Last 30 days</SectionTitle>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <StatCard label="Messages Ingested" value={data.activity30d.messagesIngested} />
-            <StatCard label="Listings Created" value={data.activity30d.listingsCreated} />
+            <StatCard label="New Properties" value={data.activity30d.newProperties} />
             <StatCard label="Clients Added" value={data.activity30d.clientsAdded} />
             <StatCard label="Portals Sent" value={data.activity30d.sharePortalsSent} />
             <StatCard label="Portals Viewed" value={data.activity30d.sharePortalsViewed} />
