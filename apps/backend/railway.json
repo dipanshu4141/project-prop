@@ -1,7 +1,7 @@
 {
   "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "npm install && npx prisma generate && npm run build && ls -la dist/"
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
   },
   "deploy": {
     "startCommand": "node dist/main.js",
