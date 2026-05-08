@@ -6,13 +6,12 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY prisma ./prisma/
-COPY prisma.config.ts ./
 
 RUN npm install
 
 COPY . .
 
-RUN npx prisma generate
+RUN npx prisma generate --schema=prisma/schema.prisma
 RUN npm run build
 
 EXPOSE 3000
