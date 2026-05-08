@@ -11,7 +11,7 @@ RUN npm install
 
 COPY . .
 
-RUN npx prisma generate --schema=prisma/schema.prisma
+RUN DATABASE_URL="postgresql://dummy:dummy@dummy:5432/dummy" npx prisma generate --schema=prisma/schema.prisma
 RUN npm run build
 
 EXPOSE 3000
