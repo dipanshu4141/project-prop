@@ -63,9 +63,9 @@ export class HealthService {
     ];
 
     // ── Activity counts (30d) — real tables ───────────────────────────────
-    const [listingsCreated, clientsAdded, sharePortalsSent, sharePortalsViewed] =
+    const [newProperties, clientsAdded, sharePortalsSent, sharePortalsViewed] =
       await Promise.all([
-        this.prisma.workspaceListing.count({ where: { createdAt: { gte: start30d } } }),
+        this.prisma.canonicalProperty.count({ where: { createdAt: { gte: start30d } } }),
         this.prisma.client.count({ where: { createdAt: { gte: start30d } } }),
         this.prisma.clientShareToken.count({ where: { createdAt: { gte: start30d } } }),
         this.prisma.clientEvent.count({
@@ -128,7 +128,7 @@ export class HealthService {
     return {
       signups: { today: signupsToday, last7d: signups7d, last30d: signups30d },
       workspaces: { total: allWorkspaces.length, activeLast7d: activeWorkspaceIds.length },
-      activity30d: { messagesIngested, listingsCreated, clientsAdded, sharePortalsSent, sharePortalsViewed },
+      activity30d: { messagesIngested, newProperties, clientsAdded, sharePortalsSent, sharePortalsViewed },
       atRisk: atRiskWorkspaces,
       trialsEndingThisWeek: trialsEndingThisWeek.map((s) => ({
         workspaceId:   s.workspace.id,
