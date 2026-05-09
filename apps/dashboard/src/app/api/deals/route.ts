@@ -1,23 +1,27 @@
-// apps/dashboard/src/app/api/deals/route.ts
-// Handles GET /api/deals and POST /api/deals (no sub-path)
+import { NextRequest, NextResponse } from "next/server";
 
-import { NextRequest, NextResponse } from 'next/server';
+const BACKEND_URL = process.env.BACKEND_URL!;
 
-const BACKEND = process.env.BACKEND_URL ?? 'http://localhost:3000';
-
-async function forward(req: NextRequest) {
-  const url = `${BACKEND}/api/deals${req.nextUrl.search}`;
-  const res = await fetch(url, {
-    method: req.method,
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url);
+  const res = await fetch(`${BACKEND_URL}/api/deals${url.search}`, {
     headers: {
-      'Content-Type': 'application/json',
-      cookie: req.headers.get('cookie') ?? '',
+      "Content-Type": "application/json",
+      cookie: request.headers.get("cookie") || "",
     },
-    body: ['GET', 'HEAD'].includes(req.method) ? undefined : await req.text(),
+    cache: "no-store",
   });
-  const data = await res.json().catch(() => ({}));
-  return NextResponse.json(data, { status: res.status });
+  return new NextResponse(await res.text(), { status: res.status });
 }
 
-export async function GET(req: NextRequest)  { return forward(req); }
-export async function POST(req: NextRequest) { return forward(req); }
+export async function POST(request: NextRequest) {
+  const res = await fetch(`${BACKEND_URL}/api/deals`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: request.headers.get("cookie") || "",
+    },
+    body: await request.text(),
+  });
+  return new NextResponse(await res.text(), { status: res.status });
+}
