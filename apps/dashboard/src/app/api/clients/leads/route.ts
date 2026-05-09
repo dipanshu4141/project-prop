@@ -1,19 +1,27 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
+const BACKEND_URL = process.env.BACKEND_URL!;
 
-export async function GET() {
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/clients/leads`, {
-      cache: "no-store",
-    });
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url);
+  const res = await fetch(`${BACKEND_URL}/api/clients/leads${url.search}`, {
+    headers: {
+      "Content-Type": "application/json",
+      cookie: request.headers.get("cookie") || "",
+    },
+    cache: "no-store",
+  });
+  return new NextResponse(await res.text(), { status: res.status });
+}
 
-    const data = await res.json();
-    return NextResponse.json(data);
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to fetch leads" },
-      { status: 500 }
-    );
-  }
+export async function POST(request: NextRequest) {
+  const res = await fetch(`${BACKEND_URL}/api/clients/leads`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: request.headers.get("cookie") || "",
+    },
+    body: await request.text(),
+  });
+  return new NextResponse(await res.text(), { status: res.status });
 }
