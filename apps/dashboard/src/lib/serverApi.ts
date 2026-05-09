@@ -10,9 +10,8 @@ import { cookies } from 'next/headers';
 
 // Internal Next.js base URL — server calling its own proxy routes
 const NEXT_BASE =
-  process.env.NEXTAUTH_URL ??
-  process.env.NEXT_PUBLIC_APP_URL ??
-  'http://localhost:3001';
+  process.env.BACKEND_URL ??
+  'http://localhost:3000';
 
 /**
  * GET from a server component.
