@@ -1,34 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
+
+const BACKEND_URL = process.env.BACKEND_URL!;
 
 export async function POST(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-    console.log("🧪 BACKEND_URL =", process.env.BACKEND_URL);
-    try {
-      console.log("🧪 BACKEND_URL =", process.env.BACKEND_URL);
-    const { id } = await context.params; // ✅ THIS IS THE FIX
-    const body = await req.json();
-
-    const backendUrl = `${process.env.BACKEND_URL}/properties/${id}/share`;
-
-
-    const res = await fetch(backendUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    const data = await res.json();
-
-    return NextResponse.json(data, { status: res.status });
-  } catch (err) {
-    console.error("API FORWARD ERROR", err);
-    return NextResponse.json(
-      { error: "Failed to forward property share" },
-      { status: 500 }
-    );
-  }
+  const { id } = await params;
+  const res = await fetch(`${BACKEND_URL}/api/properties/${id}/share`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      cookie: req.headers.get('cookie') || '',
+    },
+    body: await req.text(),
+  });
+  return new NextResponse(await res.text(), { status: res.status });
 }
