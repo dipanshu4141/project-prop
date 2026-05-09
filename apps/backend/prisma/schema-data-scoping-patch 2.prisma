@@ -1,0 +1,38 @@
+// ================================================================
+// SCHEMA PATCH — apps/backend/prisma/schema.prisma
+// ================================================================
+//
+// 1. Add ownerId to Client model:
+//
+//    model Client {
+//      ...
+//      ownerId   String?           // User.id of the broker who owns this client
+//                                  // null = unassigned (visible to all brokers = lead pool)
+//      owner     User?   @relation("ClientOwner", fields: [ownerId], references: [id])
+//      ...
+//    }
+//
+// 2. Add the reverse relation to User model:
+//
+//    model User {
+//      ...
+//      ownedClients  Client[]  @relation("ClientOwner")
+//      ...
+//    }
+//
+// 3. Add assignedTo to ClientProperty model:
+//
+//    model ClientProperty {
+//      ...
+//      assignedTo  String?   // User.id of broker managing this lead
+//                            // null = unassigned, follows client.ownerId
+//      ...
+//    }
+//
+// 4. Add index on Client.ownerId for fast per-broker queries:
+//    @@index([workspaceId, ownerId])
+//
+// 5. Run migration:
+//    npx prisma migrate dev --name add_client_owner_and_lead_assignment
+//    npx prisma generate
+// ================================================================

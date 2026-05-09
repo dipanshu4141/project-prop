@@ -26,7 +26,7 @@ const BASE_COOKIE = {
 };
 
 const ACCESS_COOKIE  = { ...BASE_COOKIE, maxAge: 15 * 60 * 1000 };
-const REFRESH_COOKIE = { ...BASE_COOKIE, maxAge: 30 * 24 * 60 * 60 * 1000 };
+const REFRESH_COOKIE = { ...BASE_COOKIE, maxAge: 365 * 24 * 60 * 60 * 1000 };
 
 function setCookies(res: Response, accessToken: string, refreshToken: string) {
   res.cookie('access_token',  accessToken,  ACCESS_COOKIE);

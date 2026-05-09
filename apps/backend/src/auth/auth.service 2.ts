@@ -157,16 +157,13 @@ export class AuthService {
       platformRole: member.user.platformRole,
     };
 
-    // Issue new tokens first, then revoke old session
-    const result = await this.issueTokens(payload, member.workspace, member.user, member.role, req);
-    
-    // Only revoke after new session is created successfully
+    // Rotate refresh token — revoke old session, create new one
     await this.prisma.userSession.update({
       where: { id: sessionId },
       data:  { revokedAt: new Date() },
     });
 
-    return result;
+    return this.issueTokens(payload, member.workspace, member.user, member.role, req);
   }
 
   // ─────────────────────────────────────────────────────────────
