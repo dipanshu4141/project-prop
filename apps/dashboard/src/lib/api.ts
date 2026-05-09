@@ -7,7 +7,7 @@
  *  - On second 401, redirects to /login
  */
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000') + '/api';
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? '') + '/api';
 
 let isRefreshing = false;
 let refreshQueue: Array<() => void> = [];
