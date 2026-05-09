@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* ── Restore session on mount ── */
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api'}/auth/me`, {
+    fetch(`/api/auth/me`, {
         credentials: 'include',
     })
         .then((res) => {
