@@ -13,6 +13,7 @@ COPY . .
 
 RUN DATABASE_URL="postgresql://dummy:dummy@dummy:5432/dummy" npx prisma generate --schema=prisma/schema.prisma
 RUN npm run build
+RUN ls -la dist/
 
 EXPOSE 3000
 
