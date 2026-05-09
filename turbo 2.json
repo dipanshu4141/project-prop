@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "dev": {
+      "cache": false
+    },
+    "build": {
+       "env": ["BACKEND_URL", "NODE_ENV", "NEXT_PUBLIC_API_URL"],
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "lint": {},
+    "test": {}
+  }
+}
