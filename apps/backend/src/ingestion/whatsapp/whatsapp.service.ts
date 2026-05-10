@@ -7,6 +7,8 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import { MessagesService } from '../../modules/messages/messages.service';
+import { useDBAuthState } from './wa-auth-state';
+import { PrismaService } from '../../core/prisma/prisma.service';
 
 @Injectable()
 export class WhatsappService implements OnModuleInit, OnModuleDestroy {
@@ -15,7 +17,9 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
   private isShuttingDown = false;
   private readonly logger = new Logger('WhatsApp');
 
-  constructor(private messagesService: MessagesService) {}
+  constructor(private messagesService: MessagesService,
+    private prisma: PrismaService,
+  ) {}
 
   async onModuleInit() {
     await this.start();
@@ -32,7 +36,7 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   async start() {
-    const { state, saveCreds } = await useMultiFileAuthState('wa-session');
+    const { state, saveCreds } = await useDBAuthState(this.prisma);
     const { version }          = await fetchLatestBaileysVersion();
     this.saveCreds = saveCreds;
 
