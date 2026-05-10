@@ -1170,5 +1170,9 @@ model GlobalMessageCache {
   createdAt DateTime @default(now())
 }
 
-
+model WaAuthState {
+  id        String   @id
+  data      Json
+  updatedAt DateTime @updatedAt
+}
 

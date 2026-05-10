@@ -199,16 +199,15 @@ export class AuthService {
 
     // Sign refresh token (long-lived, contains only userId + sessionId)
     // We'll create the session first to get its ID
-    const rawRefresh   = crypto.randomBytes(64).toString('hex');
-    const refreshHash  = crypto.createHash('sha256').update(rawRefresh).digest('hex');
+    
 
     const session = await this.prisma.userSession.create({
       data: {
         userId:       payload.sub,
-        refreshToken: refreshHash,
+        refreshToken: crypto.randomBytes(32).toString('hex'), // unique placeholder
         userAgent:    req?.headers['user-agent'],
         ipAddress:    req?.ip,
-        expiresAt:    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        expiresAt:    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });
 
