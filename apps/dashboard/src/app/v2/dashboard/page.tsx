@@ -469,15 +469,14 @@
 
 
 
+'use client';
 
-
-
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { apiGet } from '@/lib/api';
 import Link from "next/link";
 import { PageContainer } from "@/components/v2/layout/PageContainer";
 import { PageHeader } from "@/components/v2/layout/PageHeader";
-
-import { redirect }  from 'next/navigation';
-import { cookies }   from 'next/headers';
 import {
   Users,
   CheckCircle,
@@ -489,7 +488,7 @@ import {
   Handshake,
   Radio,
 } from "lucide-react";
-import { serverGet } from "@/lib/serverApi";
+
 
 /* ------------------------------------------------------------------ */
 /* TYPES                                                               */
@@ -519,27 +518,7 @@ type DashboardStats = {
 /* DATA                                                                */
 /* ------------------------------------------------------------------ */
 
-async function fetchFollowUps(path: string): Promise<FollowUpItem[]> {
-  try {
-    return await serverGet<FollowUpItem[]>(path);
-  } catch {
-    return [];
-  }
-}
 
-async function fetchStats(): Promise<DashboardStats> {
-  try {
-    return await serverGet<DashboardStats>('/dashboard/stats');
-  } catch {
-    return {
-      totalClients: 0,
-      activeClients: 0,
-      listingsThisMonth: 0,
-      dealsInProgress: 0,
-      commissionThisMonth: 0,
-    };
-  }
-}
 
 /* ------------------------------------------------------------------ */
 /* HELPERS                                                             */
@@ -738,28 +717,28 @@ function SectionCard({
 /* PAGE                                                                */
 /* ------------------------------------------------------------------ */
 
-export default async function DashboardPage() {
-  const [today, upcoming, stats] = await Promise.all([
-    fetchFollowUps("/clients/follow-ups/today"),
-    fetchFollowUps("/clients/follow-ups/upcoming"),
-    fetchStats(),
-  ]);
+export default function DashboardPage() {
+  const { user, loading } = useAuth();
+  const [today, setToday] = useState<FollowUpItem[]>([]);
+  const [upcoming, setUpcoming] = useState<FollowUpItem[]>([]);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalClients: 0,
+    activeClients: 0,
+    listingsThisMonth: 0,
+    dealsInProgress: 0,
+    commissionThisMonth: 0,
+  });
 
-  // Check if user has a workspace — if not, send to onboarding
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('access_token')?.value;
-    if (token) {
-      const res = await fetch(
-        `${process.env.BACKEND_URL}/api/onboarding/status`,
-        { headers: { cookie: `access_token=${token}` }, cache: 'no-store' }
-      );
-      if (res.ok) {
-        const status = await res.json();
-        if (!status.hasWorkspace) redirect('/onboarding');
-      }
-    }
-  } catch {}
+  useEffect(() => {
+    if (!user) return;
+    apiGet<FollowUpItem[]>('/clients/follow-ups/today').then(setToday).catch(() => {});
+    apiGet<FollowUpItem[]>('/clients/follow-ups/upcoming').then(setUpcoming).catch(() => {});
+    apiGet<DashboardStats>('/dashboard/stats').then(setStats).catch(() => {});
+  }, [user]);
+
+   if (loading) return null;
+
+
 
   const todayDate = new Date();
   todayDate.setHours(0, 0, 0, 0);

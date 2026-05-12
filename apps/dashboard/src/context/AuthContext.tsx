@@ -77,36 +77,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* ── Restore session on mount ── */
   useEffect(() => {
-    fetch(`/api/auth/me`, {
-        credentials: 'include',
-    })
-        .then((res) => {
-        if (!res.ok) throw new Error('No session');
-        return res.json();
-        })
-        .then((payload) => {
-        setState({
+    const restore = async () => {
+      try {
+        // Try /auth/me first
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+
+        if (res.ok) {
+          const payload = await res.json();
+          setState({
             user: {
-            id:           payload.sub,
-            email:        payload.email,
-            name:         payload.name ?? null,
-            platformRole: payload.platformRole,
+              id:           payload.sub,
+              email:        payload.email,
+              name:         payload.name ?? null,
+              platformRole: payload.platformRole,
             },
             workspace: {
-            id:   payload.workspaceId,
-            name: '',
-            slug: '',
-            type: 'INDIVIDUAL',
-            role: payload.role,
+              id:   payload.workspaceId,
+              name: '',
+              slug: '',
+              type: 'INDIVIDUAL',
+              role: payload.role,
             },
             loading: false,
-        });
-        })
-        .catch(() => {
-        // No session — silently set loading: false, don't redirect
+          });
+          return;
+        }
+
+        // 401 — try refresh before giving up
+        if (res.status === 401) {
+          const refreshRes = await fetch('/api/auth/refresh', {
+            method:      'POST',
+            credentials: 'include',
+          });
+
+          if (refreshRes.ok) {
+            // Retry /auth/me with new access token
+            const retryRes = await fetch('/api/auth/me', { credentials: 'include' });
+            if (retryRes.ok) {
+              const payload = await retryRes.json();
+              setState({
+                user: {
+                  id:           payload.sub,
+                  email:        payload.email,
+                  name:         payload.name ?? null,
+                  platformRole: payload.platformRole,
+                },
+                workspace: {
+                  id:   payload.workspaceId,
+                  name: '',
+                  slug: '',
+                  type: 'INDIVIDUAL',
+                  role: payload.role,
+                },
+                loading: false,
+              });
+              return;
+            }
+          }
+        }
+
+        // Both failed — not logged in
         setState({ user: null, workspace: null, loading: false });
-        });
-    }, []);
+
+      } catch {
+        setState({ user: null, workspace: null, loading: false });
+      }
+    };
+
+    restore();
+  }, []);
 
 
   /* ── Called after successful login/register ── */
