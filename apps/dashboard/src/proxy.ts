@@ -32,9 +32,7 @@ export function proxy(request: NextRequest) {
   }
 
   // Check for auth cookie
-  const token =
-    request.cookies.get('access_token')?.value ??
-    request.cookies.get('token')?.value;
+const token = request.cookies.get('refresh_token')?.value;
 
   if (!token) {
     const loginUrl = new URL('/login', request.url);
