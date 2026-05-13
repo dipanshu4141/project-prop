@@ -24,6 +24,7 @@ import { DashboardController } from './modules/dashboard/dashboard.controller';
 import { DashboardService }    from './modules/dashboard/dashboard.service';
 import { PreClassifierService } from './modules/messages/pre-classifier.service';
 import { MessageCacheService } from './modules/messages/message-cache.service';
+import { MediaModule } from './modules/media/media.module';
 
 import { IngestionModule } from './modules/ingestion/ingestion.module';
 
@@ -45,6 +46,7 @@ import { IngestionModule } from './modules/ingestion/ingestion.module';
     AgentsModule,
     ClientsModule,
     TeamModule,
+    MediaModule,
     // WhatsappModule,
     PublicModule,
     ListingsModule, 

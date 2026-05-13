@@ -184,6 +184,28 @@ enum LeadStage {
   LOST
 }
 
+enum MediaSource {
+  WHATSAPP_INGESTED
+  BROKER_UPLOAD
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum StorageTier {
+  GB_50    // ₹99/month
+  GB_100   // ₹199/month
+}
+
+enum StorageSubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+}
+
 // ============================================================
 // PLATFORM — AUTH & WORKSPACE
 // ============================================================
@@ -217,6 +239,9 @@ model Workspace {
 
   shareTokens       ClientShareToken[]
   groupSubscriptions GroupSubscription[]
+
+  storageSubscription  WorkspaceStorageSubscription?
+  media                Media[]
 
   // CRM data
   messages   Message[]
@@ -400,6 +425,8 @@ model CanonicalProperty {
   listings    WorkspaceListing[]
   duplicateLinks DuplicateLink[]
   deals       PropertyDeal[]
+
+  media   Media[]
 
   @@index([fingerprint])
   @@index([verified])
@@ -994,11 +1021,85 @@ model ListingAgent {
 // ============================================================
 
 model Media {
-  id        String @id @default(uuid())
-  listingId String
-  listing   WorkspaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  url       String
-  type      String  // IMAGE | VIDEO | DOCUMENT
+  id          String    @id @default(uuid())
+
+  // which listing this belongs to (broker's scoped view)
+  listingId   String
+  listing     WorkspaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  // which workspace uploaded it
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // who uploaded it
+  uploadedById String?
+
+  // R2 storage key — e.g. "workspaceId/listingId/uuid.jpg"
+  r2Key       String    @unique
+
+  // public URL served from R2 / CDN
+  url         String
+
+  type        MediaType
+  mimeType    String?   // "image/jpeg", "video/mp4"
+  sizeBytes   BigInt    // exact file size — used for quota tracking
+
+  // broker chose compressed or original at upload
+  isCompressed Boolean  @default(false)
+
+  // where did this come from
+  source      MediaSource @default(BROKER_UPLOAD)
+
+  // does this count toward workspace storage quota
+  // false for WHATSAPP_INGESTED, true for BROKER_UPLOAD
+  countedInQuota Boolean @default(true)
+
+  // community sharing
+  // if true — other workspaces can display this on their portals
+  // linked to canonicalProperty so any broker can reference it
+  isShared       Boolean @default(false)
+  canonicalPropertyId String?
+  canonicalProperty   CanonicalProperty? @relation(fields: [canonicalPropertyId], references: [id], onDelete: SetNull)
+
+  // soft delete — keep row for quota accounting even after broker deletes
+  deletedAt   DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([listingId])
+  @@index([workspaceId])
+  @@index([canonicalPropertyId])
+  @@index([source])
+  @@index([isShared])
+  @@index([deletedAt])
+}
+
+
+model WorkspaceStorageSubscription {
+  id          String    @id @default(uuid())
+
+  workspaceId String    @unique
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  tier        StorageTier           // GB_50 | GB_100
+  storageGb   Int                   // 50 or 100 — denormalized for easy query
+  priceMonthly Int                  // in paise: 9900 or 19900
+
+  status      StorageSubscriptionStatus @default(ACTIVE)
+
+  // Razorpay subscription ID — populate when billing is built
+  gatewaySubscriptionId String?
+
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelledAt        DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId])
+  @@index([status])
 }
 
 model ListingActivity {

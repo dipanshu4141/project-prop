@@ -11,6 +11,7 @@ import { serverGet } from "@/lib/serverApi";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { BackButton } from "@/components/v2/navigation/BackButton";
+import { MediaGallery } from "@/components/v2/property/MediaGallery";
 /* ------------------------------------------------------------------ */
 /* DATA FETCHERS                                                        */
 /* ------------------------------------------------------------------ */
@@ -174,6 +175,11 @@ export default async function PropertyDetailsPage({
                 <PropertyLeadsDropdown leads={leads} />
               </div>
             </div>
+
+            <MediaGallery
+              listingId={property.id}
+              canonicalPropertyId={property.canonicalPropertyId}
+            />
 
           </div>
         </div>
