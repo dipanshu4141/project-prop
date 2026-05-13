@@ -42,7 +42,7 @@ export class RolesGuard implements CanActivate {
     // SUPERADMIN bypasses all workspace role checks
     if (user.platformRole === PlatformRole.SUPERADMIN) return true;
 
-    if (!required.includes(user.role)) {
+     if (!required.includes(user.role as MemberRole)) {
       throw new ForbiddenException(
         `Requires one of: ${required.join(', ')}. You have: ${user.role}`,
       );
@@ -72,7 +72,7 @@ export class PlatformRolesGuard implements CanActivate {
 
     const user: JwtPayload = ctx.switchToHttp().getRequest().user;
 
-    if (!required.includes(user.platformRole)) {
+     if (!required.includes(user.platformRole as PlatformRole)) {
       throw new ForbiddenException('Platform access only.');
     }
     return true;

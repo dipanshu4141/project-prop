@@ -7,19 +7,23 @@ import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { PrismaModule } from '../core/prisma/prisma.module';
 
+import { GoogleStrategy }  from './strategies/google.strategy';
+import { EmailModule }     from '../core/email/email.module';
+
+
 @Module({
   imports: [
     PrismaModule,
-    PassportModule,
-    // JwtModule registered without a default secret —
-    // each sign() call passes its own secret explicitly.
     JwtModule.register({}),
+    PassportModule,
+    EmailModule
   ],
   controllers: [AuthController],
   providers: [
     AuthService,
     JwtAccessStrategy,
     JwtRefreshStrategy,
+    GoogleStrategy
   ],
   exports: [AuthService],
 })
