@@ -40,8 +40,14 @@ function setCookies(res: Response, accessToken: string, refreshToken: string) {
 }
 
 function clearCookies(res: Response) {
-  res.clearCookie('access_token',  { path: '/' });
-  res.clearCookie('refresh_token', { path: '/' });
+  const opts = {
+    path:     '/',
+    domain:   IS_PROD ? '.growcliento.com' : undefined,
+    sameSite: (IS_PROD ? 'none' : 'lax') as 'none' | 'lax',
+    secure:   IS_PROD,
+  };
+  res.clearCookie('access_token',  opts);
+  res.clearCookie('refresh_token', opts);
 }
 
 @Controller('auth')
