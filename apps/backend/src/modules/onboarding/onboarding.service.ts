@@ -19,17 +19,18 @@ export class OnboardingService {
       where: { userId },
       select: {
         workspace: {
-          select: { id: true, name: true, plan: true },
+          select: { id: true, name: true, plan: true, planSelected: true },
         },
       },
     });
 
     return {
-      hasWorkspace: !!membership,
-      workspaceId:  membership?.workspace.id   ?? null,
-      workspaceName: membership?.workspace.name ?? null,
-      plan:          membership?.workspace.plan  ?? null,
-    };
+          hasWorkspace:  !!membership,
+          workspaceId:   membership?.workspace.id           ?? null,
+          workspaceName: membership?.workspace.name         ?? null,
+          plan:          membership?.workspace.plan          ?? null,
+          planSelected:  membership?.workspace.planSelected ?? false,
+        };
   }
 
   // ── Step 1: Create workspace ────────────────────────────────────────────────
@@ -117,7 +118,7 @@ export class OnboardingService {
     // Update workspace plan
     await this.prisma.workspace.update({
       where: { id: workspaceId },
-      data:  { plan },
+      data:  { plan, planSelected: true },
     });
 
     // Create or update subscription record
