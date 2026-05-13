@@ -6,6 +6,7 @@ import type { NextRequest } from 'next/server';
  * Prefix-matched: /share covers /share/[any-token]
  */
 const PUBLIC_PATHS = [
+  '/', 
   '/login',
   '/register',
   '/share',           // ← client-facing property sharing portal
