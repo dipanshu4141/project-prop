@@ -13,10 +13,10 @@ import { PublicService } from './public.service';
 class RespondDto {
   @IsString()
   @IsNotEmpty()
-  clientPropertyId: string;
+  clientPropertyId!: string;
 
   @IsIn(['INTERESTED', 'NOT_INTERESTED'])
-  status: 'INTERESTED' | 'NOT_INTERESTED';
+  status!: 'INTERESTED' | 'NOT_INTERESTED';
 }
 
 /**
