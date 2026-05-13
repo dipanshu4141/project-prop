@@ -25,9 +25,11 @@ const IS_PROD = process.env.NODE_ENV === 'production';
 const BASE_COOKIE = {
   httpOnly: true,
   secure:   IS_PROD,
-  sameSite: 'lax' as const,
+  sameSite: (IS_PROD ? 'none' : 'lax') as 'none' | 'lax',
+  domain:   IS_PROD ? '.growcliento.com' : undefined,
   path:     '/',
 };
+
 
 const ACCESS_COOKIE  = { ...BASE_COOKIE, maxAge: 15 * 60 * 1000 };
 const REFRESH_COOKIE = { ...BASE_COOKIE, maxAge: 30 * 24 * 60 * 60 * 1000 };
