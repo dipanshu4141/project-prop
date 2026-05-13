@@ -9,12 +9,13 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { LeadStage } from '@prisma/client';
+import { LeadStage, MemberRole } from '@prisma/client';
 import { CallerContext, ClientsService } from './clients.service';
 import { JwtAuthGuard } from '../../auth/guards/auth.guards';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../../auth/jwt-payload.interface';
 import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+
 
 
 class ShareTokenByPhoneDto {
@@ -34,12 +35,12 @@ export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
   private ctx(user: JwtPayload): CallerContext {
-    return {
-      workspaceId: user.workspaceId,
-      userId:      user.sub,
-      role:        user.role,
-    };
-  }
+      return {
+        workspaceId: user.workspaceId,
+        userId:      user.sub,
+        role:        user.role as MemberRole,
+      };
+    }
 
   // ================================================================
   // LEADS INBOX  (must stay above :id to avoid route conflict)

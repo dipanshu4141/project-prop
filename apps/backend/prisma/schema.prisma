@@ -204,6 +204,8 @@ model Workspace {
   suspendedAt     DateTime?
   suspendedReason String?
 
+  planSelected    Boolean   @default(false)
+
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
@@ -233,15 +235,11 @@ model Workspace {
 model User {
   id           String       @id @default(uuid())
   email        String       @unique
-  passwordHash String
-
+  passwordHash String?      // nullable — Google users have no password
   name         String?
   phone        String?
   avatarUrl    String?
-
-  ownedClients  Client[]  @relation("ClientOwner")
-
-  platformRole PlatformRole @default(USER)
+  googleId     String?      @unique
 
   emailVerified   Boolean   @default(false)
   verifyToken     String?   @unique
@@ -249,6 +247,13 @@ model User {
 
   resetToken      String?   @unique
   resetTokenExp   DateTime?
+
+
+  ownedClients  Client[]  @relation("ClientOwner")
+
+  platformRole PlatformRole @default(USER)
+
+
 
   isActive        Boolean   @default(true)
   deactivatedAt   DateTime?

@@ -36,11 +36,12 @@ export type AuthUser = {
 };
 
 export type AuthWorkspace = {
-  id:   string;
-  name: string;
-  slug: string;
-  type: 'INDIVIDUAL' | 'FIRM';
-  role: 'OWNER' | 'BROKER' | 'VIEWER';
+  id:           string;
+  name:         string;
+  slug:         string;
+  type:         'INDIVIDUAL' | 'FIRM';
+  role:         'OWNER' | 'BROKER' | 'VIEWER';
+  planSelected: boolean;
 };
 
 type AuthState = {
@@ -92,11 +93,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               platformRole: payload.platformRole,
             },
             workspace: {
-              id:   payload.workspaceId,
-              name: '',
-              slug: '',
-              type: 'INDIVIDUAL',
-              role: payload.role,
+              id:           payload.workspaceId,
+              name:         '',
+              slug:         '',
+              type:         'INDIVIDUAL',
+              role:         payload.role,
+              planSelected: payload.planSelected ?? false,
             },
             loading: false,
           });
@@ -123,11 +125,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   platformRole: payload.platformRole,
                 },
                 workspace: {
-                  id:   payload.workspaceId,
-                  name: '',
-                  slug: '',
-                  type: 'INDIVIDUAL',
-                  role: payload.role,
+                  id:           payload.workspaceId,
+                  name:         '',
+                  slug:         '',
+                  type:         'INDIVIDUAL',
+                  role:         payload.role,
+                  planSelected: payload.planSelected ?? false,
                 },
                 loading: false,
               });

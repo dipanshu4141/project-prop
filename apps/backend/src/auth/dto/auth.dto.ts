@@ -45,8 +45,10 @@ export class LoginDto {
 }
 
 export class TokenResponseDto {
-  accessToken:  string;
-  refreshToken: string;
+  accessToken:   string;
+  refreshToken:  string;
+  isNewUser?:    boolean;
+  planSelected?: boolean;
   user: {
     id:           string;
     email:        string;
@@ -54,10 +56,12 @@ export class TokenResponseDto {
     platformRole: string;
   };
   workspace: {
-    id:   string;
-    name: string;
-    slug: string;
-    type: string;
-    role: string;   // member's role in this workspace
-  };
+      id:           string;
+      name:         string;
+      slug:         string;
+      type:         string;
+      role:         string;
+      planSelected: boolean;
+    };
+
 }
