@@ -48,9 +48,10 @@ export default async function OnboardingPage({
 
   // Existing user with workspace who visits /onboarding directly
   // and is NOT coming fresh from register → already done, go to dashboard
-  if (status.hasWorkspace && !startAtPlan) {
+  if (status.hasWorkspace && !startAtPlan && status.planSelected) {
     redirect('/v2/dashboard');
   }
+
 
   return (
     <OnboardingFlow

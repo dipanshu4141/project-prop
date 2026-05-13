@@ -165,16 +165,19 @@ function PlanStep({ workspaceType, onNext }: { workspaceType: WorkspaceType; onN
     : PLANS;
 
   async function handleContinue() {
-    setLoading(true); setError('');
-    try {
-      await apiPost('/onboarding/plan', { plan: selected, interval: 'MONTHLY' });
-      onNext(selected);
-    } catch (err: any) {
-      setError(err.message ?? 'Something went wrong');
-    } finally {
-      setLoading(false);
+      setLoading(true); setError('');
+      try {
+        await apiPost('/onboarding/plan', { plan: selected, interval: 'MONTHLY' });
+        // Rotate JWT so new cookie has planSelected: true baked in
+        await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
+        onNext(selected);
+      } catch (err: any) {
+        setError(err.message ?? 'Something went wrong');
+      } finally {
+        setLoading(false);
+      }
     }
-  }
+
 
   return (
     <div className="space-y-5">
