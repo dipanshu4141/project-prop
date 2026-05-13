@@ -20,12 +20,19 @@ import { JwtPayload } from './jwt-payload.interface';
 import { MemberRole } from '@prisma/client';
 
 
+import { EmailService } from '../core/email/email.service';
+
+
+
+
 
 @Injectable()
 export class AuthService {
+  // Add EmailService to constructor:
   constructor(
     private prisma:     PrismaService,
-    private jwtService: JwtService, 
+    private jwtService: JwtService,
+    private email:      EmailService,
   ) {}
 
   // ─────────────────────────────────────────────────────────────
@@ -88,9 +95,10 @@ export class AuthService {
       return { user, workspace, member };
     });
 
+    await this.sendVerificationEmail(user.id);
     // 5. Issue tokens
     return this.issueTokens(
-      { sub: user.id, email: user.email, workspaceId: workspace.id, role: member.role, platformRole: user.platformRole },
+      { sub: user.id, email: user.email, workspaceId: workspace.id, role: member.role, platformRole: user.platformRole, planSelected: false },
       workspace,
       user,
       member.role,
@@ -109,6 +117,7 @@ export class AuthService {
 
     if (!user || !user.isActive) throw new UnauthorizedException('Invalid credentials');
 
+if (!user.passwordHash) throw new UnauthorizedException('This account uses Google sign-in. Please continue with Google.');
     const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordValid) throw new UnauthorizedException('Invalid credentials');
 
@@ -128,9 +137,127 @@ export class AuthService {
       workspaceId:  member.workspaceId,
       role:         member.role,
       platformRole: user.platformRole,
+      planSelected: member.workspace.planSelected ?? false,
     };
 
     return this.issueTokens(payload, member.workspace, user, member.role, req);
+  }
+
+
+  // ─── GOOGLE AUTH ────────────────────────────────────────────────────
+  async googleAuth(
+    profile: { googleId: string; email: string; name: string; avatarUrl: string | null },
+    req?: Request,
+  ): Promise<TokenResponseDto> {
+    let user = await this.prisma.user.findFirst({
+      where: { OR: [{ googleId: profile.googleId }, { email: profile.email }] },
+    });
+
+    const existingUser = !!user;
+
+    if (user) {
+      // Auto-merge: link Google to existing email account
+      if (!user.googleId) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data:  { googleId: profile.googleId, avatarUrl: profile.avatarUrl, emailVerified: true },
+        });
+      }
+    } else {
+      // New user via Google — create account + workspace
+      const slug = await this.generateUniqueSlug(profile.name);
+      user = await this.prisma.$transaction(async (tx) => {
+        const u = await tx.user.create({
+          data: {
+            email:         profile.email,
+            googleId:      profile.googleId,
+            name:          profile.name,
+            avatarUrl:     profile.avatarUrl,
+            emailVerified: true,
+            passwordHash:  null,
+          },
+        });
+        const ws = await tx.workspace.create({
+          data: { name: profile.name, slug, type: 'INDIVIDUAL', plan: 'FREE' },
+        });
+        await tx.workspaceMember.create({
+          data: { workspaceId: ws.id, userId: u.id, role: 'OWNER' },
+        });
+        await tx.subscription.create({
+          data: {
+            workspaceId: ws.id, plan: 'FREE', status: 'TRIALING',
+            seats: 1, seatsUsed: 1,
+            trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          },
+        });
+        return u;
+      });
+    }
+
+    const member = await this.prisma.workspaceMember.findFirst({
+      where: { userId: user.id }, orderBy: { joinedAt: 'asc' }, include: { workspace: true },
+    });
+
+    if (!member) throw new UnauthorizedException('No workspace found');
+
+    const payload: JwtPayload = {
+      sub: user.id, 
+      email: user.email,
+      workspaceId: member.workspaceId, 
+      role: member.role, 
+      platformRole: user.platformRole,
+      planSelected: member.workspace.planSelected ?? false,
+    };
+
+    const tokens = await this.issueTokens(payload, member.workspace, user, member.role, req);
+  return { ...tokens, isNewUser: !existingUser };
+  }
+
+  // ─── SEND VERIFICATION EMAIL ────────────────────────────────────────
+  async sendVerificationEmail(userId: string): Promise<void> {
+    const token = crypto.randomBytes(32).toString('hex');
+    const user  = await this.prisma.user.update({
+      where: { id: userId },
+      data:  { verifyToken: token, verifyTokenExp: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+    });
+    await this.email.sendVerificationEmail(user.email, user.name, token);
+  }
+
+  // ─── VERIFY EMAIL ───────────────────────────────────────────────────
+  async verifyEmail(token: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { verifyToken: token } });
+    if (!user || !user.verifyTokenExp || user.verifyTokenExp < new Date()) {
+      throw new BadRequestException('Invalid or expired verification link');
+    }
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data:  { emailVerified: true, verifyToken: null, verifyTokenExp: null },
+    });
+  }
+
+  // ─── FORGOT PASSWORD ────────────────────────────────────────────────
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (!user) return; // silent — don't reveal if email exists
+    const token = crypto.randomBytes(32).toString('hex');
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data:  { resetToken: token, resetTokenExp: new Date(Date.now() + 60 * 60 * 1000) },
+    });
+    await this.email.sendPasswordResetEmail(user.email, user.name, token);
+  }
+
+  // ─── RESET PASSWORD ─────────────────────────────────────────────────
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { resetToken: token } });
+    if (!user || !user.resetTokenExp || user.resetTokenExp < new Date()) {
+      throw new BadRequestException('Invalid or expired reset link');
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data:  { passwordHash, resetToken: null, resetTokenExp: null },
+    });
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -139,13 +266,9 @@ export class AuthService {
 
   async refresh(userId: string, sessionId: string, req?: Request): Promise<TokenResponseDto> {
     const member = await this.prisma.workspaceMember.findFirst({
-      where:   { userId },
-      orderBy: { joinedAt: 'asc' },
-      include: {
-        workspace: true,
-        user: true,
-      },
-    });
+          where: { userId }, orderBy: { joinedAt: 'asc' }, include: { workspace: true, user: true },
+        });
+
 
     if (!member) throw new UnauthorizedException();
 
@@ -155,6 +278,7 @@ export class AuthService {
       workspaceId:  member.workspaceId,
       role:         member.role,
       platformRole: member.user.platformRole,
+      planSelected: member.workspace.planSelected ?? false,
     };
 
     // Issue new tokens first, then revoke old session
@@ -201,24 +325,29 @@ export class AuthService {
     // We'll create the session first to get its ID
     
 
-    const session = await this.prisma.userSession.create({
-      data: {
-        userId:       payload.sub,
-        refreshToken: crypto.randomBytes(32).toString('hex'), // unique placeholder
-        userAgent:    req?.headers['user-agent'],
-        ipAddress:    req?.ip,
-        expiresAt:    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
-    });
+    const rawRefresh  = crypto.randomBytes(64).toString('hex');
+        const refreshHash = crypto.createHash('sha256').update(rawRefresh).digest('hex');
 
-    const refreshToken = this.jwtService.sign(
-      { sub: payload.sub, sessionId: session.id },
-      { secret: JWT_REFRESH_SECRET, expiresIn: JWT_REFRESH_EXPIRES },
-    );
+        const session = await this.prisma.userSession.create({
+          data: {
+            userId:       payload.sub,
+            refreshToken: refreshHash,
+            userAgent:    req?.headers['user-agent'],
+            ipAddress:    req?.ip,
+            expiresAt:    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          },
+        });
+
+        const refreshToken = this.jwtService.sign(
+          { sub: payload.sub, sessionId: session.id },
+          { secret: JWT_REFRESH_SECRET, expiresIn: JWT_REFRESH_EXPIRES },
+        );
+
 
     return {
       accessToken,
       refreshToken,
+      planSelected: payload.planSelected ?? false,
       user: {
         id:           user.id,
         email:        user.email,
@@ -226,11 +355,12 @@ export class AuthService {
         platformRole: user.platformRole,
       },
       workspace: {
-        id:   workspace.id,
-        name: workspace.name,
-        slug: workspace.slug,
-        type: workspace.type,
-        role: memberRole,
+        id:           workspace.id,
+        name:         workspace.name,
+        slug:         workspace.slug,
+        type:         workspace.type,
+        role:         memberRole,
+        planSelected: payload.planSelected ?? false,
       },
     };
   }
@@ -344,6 +474,7 @@ export class AuthService {
       workspaceId:  result.workspace.id,
       role:         invite.role as MemberRole,
       platformRole: result.user.platformRole,
+      planSelected: false,
     };
 
     const { accessToken, refreshToken } = await this.issueTokens(

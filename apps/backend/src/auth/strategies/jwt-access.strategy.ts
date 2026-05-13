@@ -36,7 +36,7 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt') {
       },
       include: {
         user:      { select: { isActive: true, platformRole: true } },
-        workspace: { select: { isActive: true } },
+        workspace: { select: { isActive: true, planSelected: true } },
       },
     });
 
@@ -55,6 +55,7 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt') {
       workspaceId:  payload.workspaceId,
       role:         member.role,
       platformRole: member.user.platformRole,
+      planSelected: member.workspace.planSelected ?? false,
     };
   }
 }
