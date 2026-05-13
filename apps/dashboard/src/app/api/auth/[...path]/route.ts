@@ -25,14 +25,7 @@ async function proxy(req: NextRequest, context: Context, method: string) {
     };
     // Forward Set-Cookie headers
     const setCookie = res.headers.get('set-cookie');
-    if (setCookie) {
-      // Rewrite cookie for current domain — fixes Safari + mobile
-      const rewritten = setCookie
-        .replace(/Domain=[^;]+;?\s*/gi, '')
-        .replace(/SameSite=\w+/gi, 'SameSite=Lax');
-      headers['set-cookie'] = rewritten;
-    }
-
+    if (setCookie) headers['set-cookie'] = setCookie;
     return new NextResponse(text, { status: res.status, headers });
   } catch (err) {
     return NextResponse.json({ error: 'PROXY_FAILED' }, { status: 502 });
