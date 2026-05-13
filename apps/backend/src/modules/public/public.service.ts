@@ -51,6 +51,12 @@ export class PublicService {
             city:            true,
             area:            true,
             price:           true,
+            media: {
+              where:   { deletedAt: null },
+              select:  { id: true, url: true, type: true },
+              orderBy: { createdAt: 'asc' },
+              take:    10,
+            },
           },
         },
       },
@@ -72,7 +78,7 @@ export class PublicService {
           city:         cp.listing.city,
           locality:     cp.listing.area,        // area field = locality in your schema
           price:        cp.listing.price,
-          imageUrl:     null,                   // extend if Media is queried
+          media: cp.listing.media ?? [],
         },
       })),
     };

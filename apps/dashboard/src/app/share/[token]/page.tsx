@@ -6,16 +6,22 @@ import { SharePortalClient } from './SharePortalClient';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export type ShareMedia = {
+  id:   string;
+  url:  string;
+  type: 'IMAGE' | 'VIDEO' | 'DOCUMENT';
+};
+
 export type ShareListing = {
   id:           string;
   bhk:          string | null;
-  propertyType: string | null;     // maps from propertySubType
-  area:         number | null;     // areaSqft
+  propertyType: string | null;
+  area:         number | null;
   areaUnit:     string | null;
   city:         string | null;
-  locality:     string | null;     // maps from WorkspaceListing.area (neighbourhood)
-  price:        string | null;     // BigInt → string from backend
-  imageUrl:     string | null;
+  locality:     string | null;
+  price:        string | null;
+  media:        ShareMedia[];
 };
 
 export type ShareProperty = {
