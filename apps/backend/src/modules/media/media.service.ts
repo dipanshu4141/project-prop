@@ -176,13 +176,20 @@ export class MediaService {
   // Called by frontend AFTER successful PUT to R2
 
   async confirmUpload(workspaceId: string, userId: string, dto: ConfirmUploadDto) {
-    // Re-check quota with exact size (presign check used frontend-reported size)
+    // Re-check quota with exact size
     await this.checkQuota(workspaceId, dto.sizeBytes);
+
+    // Get listing first — need canonicalPropertyId
+    const listing = await this.prisma.workspaceListing.findFirst({
+        where: { id: dto.listingId, workspaceId },
+        select: { canonicalPropertyId: true },
+    });
+    if (!listing) throw new NotFoundException('Listing not found');
 
     const publicUrl = `${process.env.R2_PUBLIC_URL}/${dto.r2Key}`;
 
     const media = await this.prisma.media.create({
-      data: {
+        data: {
         listingId: dto.listingId,
         workspaceId,
         uploadedById: userId,
@@ -191,40 +198,60 @@ export class MediaService {
         type: dto.type as any,
         mimeType: dto.mimeType,
         sizeBytes: dto.sizeBytes,
-        isCompressed: dto.isCompressed ?? false,
+        isCompressed: dto.isCompressed ?? true,
+        isShared: true,
         source: MediaSource.BROKER_UPLOAD,
         countedInQuota: true,
-      },
+        canonicalPropertyId: listing.canonicalPropertyId,
+        },
     });
 
     return media;
-  }
+    }
 
   // ─── GET LISTING MEDIA ────────────────────────────────────
 
   async getListingMedia(workspaceId: string, listingId: string) {
     const listing = await this.prisma.workspaceListing.findFirst({
-      where: { id: listingId, workspaceId },
+        where: { id: listingId, workspaceId },
+        select: { id: true, canonicalPropertyId: true },
     });
     if (!listing) throw new NotFoundException('Listing not found');
 
-    return this.prisma.media.findMany({
-      where: { listingId, deletedAt: null },
-      orderBy: { createdAt: 'asc' },
-      select: {
-        id: true,
-        url: true,
-        type: true,
-        mimeType: true,
-        sizeBytes: true,
-        isCompressed: true,
-        isShared: true,
-        source: true,
-        countedInQuota: true,
-        createdAt: true,
-      },
+    // Fetch this workspace's own media for this listing
+    const ownMedia = await this.prisma.media.findMany({
+        where: { listingId, deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+        select: {
+        id: true, url: true, type: true, mimeType: true,
+        sizeBytes: true, isCompressed: true, isShared: true,
+        source: true, countedInQuota: true, createdAt: true,
+        workspaceId: true,
+        },
     });
-  }
+
+    // Fetch shared media from OTHER workspaces for the same canonical property
+    const communityMedia = listing.canonicalPropertyId
+        ? await this.prisma.media.findMany({
+            where: {
+            canonicalPropertyId: listing.canonicalPropertyId,
+            isShared: true,
+            deletedAt: null,
+            workspaceId: { not: workspaceId }, // exclude own workspace
+            },
+            orderBy: { createdAt: 'asc' },
+            select: {
+            id: true, url: true, type: true, mimeType: true,
+            sizeBytes: true, isCompressed: true, isShared: true,
+            source: true, countedInQuota: true, createdAt: true,
+            workspaceId: true,
+            },
+        })
+        : [];
+
+    // Merge — own media first, then community
+    return [...ownMedia, ...communityMedia];
+    }
 
   // ─── DELETE MEDIA ─────────────────────────────────────────
 
@@ -266,11 +293,11 @@ export class MediaService {
     if (!canonical) throw new NotFoundException('Canonical property not found');
 
     return this.prisma.media.update({
-      where: { id: dto.mediaId },
-      data: {
-        isShared: true,
-        canonicalPropertyId: dto.canonicalPropertyId,
-      },
+        where: { id: dto.mediaId },
+        data: {
+            isShared: !media.isShared,
+            canonicalPropertyId: !media.isShared ? dto.canonicalPropertyId : null,
+        },
     });
   }
 
