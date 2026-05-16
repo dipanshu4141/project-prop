@@ -263,6 +263,7 @@ import {
   PropertyStatusSelect,
   type AvailabilityStatus,
 } from '@/components/v2/property/PropertyStatusSelect';
+import { SaveToCollectionButton } from '@/components/v2/collections/SaveToCollectionButton';
 
 /* ------------------------------------------------------------------ */
 /* TYPES                                                               */
@@ -406,6 +407,12 @@ export function PropertyCard({
         </span>
         <div className={`h-[3px] w-full ${accentClass(property)}`} />
         <div className="flex items-center gap-1 flex-shrink-0">
+
+          {/* ADD THIS
+          {!selectionMode && (
+            <SaveToCollectionButton listingId={property.id} />
+          )} */}
+
           {(property.urgencyLevel === 'VERY_URGENT' || property.urgencyLevel === 'URGENT') && (
             <Zap className="h-3 w-3 text-orange-500 flex-shrink-0" />
           )}
@@ -463,8 +470,11 @@ export function PropertyCard({
       )}
 
       {/* ── FOOTER ──────────────────────────────────────────────────── */}
+      {/* <div className="flex items-center justify-end border-t border-slate-100 px-2.5 py-1.5 gap-1 flex-shrink-0"> */}
+
+        {/* Uncomment the below section to enable the availabilty option*/}
       <div className="flex items-center justify-between border-t border-slate-100 px-2.5 py-1.5 gap-1 flex-shrink-0">
-        <div className="flex-1 min-w-0">
+        {/* <div className="flex-1 min-w-0">
           <PropertyStatusSelect
             listingId={property.id}
             current={availability}
@@ -473,7 +483,11 @@ export function PropertyCard({
             variant="compact"
             disabled={selectionMode}
           />
-        </div>
+        </div> */}
+      {/* ADD THIS */}
+          {!selectionMode && (
+            <SaveToCollectionButton listingId={property.id} />
+          )}
 
         <div className="flex items-center gap-1 flex-shrink-0">
            {!selectionMode && (

@@ -4,8 +4,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LayoutGrid, List, Share2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutGrid, List, Share2, X, ChevronLeft, ChevronRight, FolderPlus } from 'lucide-react';
 import { apiGet } from '@/lib/api';
+import { AddToShortlistModal } from '@/components/v2/shortlists/AddToShortlistModal';
+
 
 import PropertyFilters, {
   type PropertyFiltersValue,
@@ -113,6 +115,7 @@ export default function PropertiesClient() {
   const [selectedMap,   setSelectedMap]   = useState<Record<string, Property | null>>({});
   const [selectionMode, setSelectionMode] = useState(false);
   const [shareOpen,     setShareOpen]     = useState(false);
+  const [shortlistOpen, setShortlistOpen] = useState(false);
 
   const page          = Number(searchParams.get('page') || 1);
   const sort = searchParams.get('sort') || 'last_seen';
@@ -402,21 +405,21 @@ export default function PropertiesClient() {
           <button onClick={clearSelection} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-colors">
             <X className="h-3.5 w-3.5" />
           </button>
-          <button
-            onClick={() => setShareOpen(true)}
-            disabled={selectedCount > 10}
+         <button
+            onClick={() => setShortlistOpen(true)}
+            disabled={selectedCount > 20}
             className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 px-4 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
           >
-            <Share2 className="h-3.5 w-3.5" />
-            Share via WhatsApp
+            <FolderPlus className="h-3.5 w-3.5" />
+            Add to shortlist
           </button>
         </div>
       </div>
 
-      {shareOpen && (
-        <ShareMultiplePropertiesModal
-          propertiesMap={selectedMap}
-          onClose={() => { setShareOpen(false); setSelectedMap({}); setSelectionMode(false); }}
+      {shortlistOpen && (
+        <AddToShortlistModal
+          listingIds={Object.keys(selectedMap)}
+          onClose={() => { setShortlistOpen(false); setSelectedMap({}); setSelectionMode(false); }}
         />
       )}
     </>

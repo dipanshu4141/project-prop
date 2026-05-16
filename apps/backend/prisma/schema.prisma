@@ -439,6 +439,9 @@ model CanonicalProperty {
 ///
 /// refCode format: "{workspaceSlug}-{year}-{sequence}"
 /// e.g. "sharma-2024-0047" — Sharma Properties, 2024, listing #47
+
+
+
 model WorkspaceListing {
   id          String @id @default(uuid())
 
@@ -524,6 +527,9 @@ model WorkspaceListing {
   shares           PropertyShare[]
   listingAgents    ListingAgent[]
   clientProperties ClientProperty[]
+
+  savedIn        SavedCollectionItem[]
+  shortlistItems ClientShortlistItem[]
 
   @@unique([workspaceId, canonicalPropertyId])  // one listing per workspace per real property
   @@index([workspaceId])
@@ -1174,6 +1180,8 @@ model Client {
 
   shareTokens  ClientShareToken[]
 
+  shortlists  ClientShortlist[]
+
   @@unique([workspaceId, id])
   @@index([workspaceId])
   @@index([workspaceId, ownerId])
@@ -1282,3 +1290,75 @@ model WaAuthState {
   updatedAt DateTime @updatedAt
 }
 
+
+// ============================================================
+// SAVED COLLECTIONS (per-broker private bookmarks)
+// ============================================================
+
+model SavedCollection {
+  id          String   @id @default(uuid())
+  workspaceId String
+  createdById String
+  name        String
+  emoji       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       SavedCollectionItem[]
+
+  @@index([workspaceId, createdById])
+}
+
+model SavedCollectionItem {
+  id           String   @id @default(uuid())
+  collectionId String
+  listingId    String
+  addedAt      DateTime @default(now())
+
+  collection   SavedCollection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  listing      WorkspaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, listingId])
+  @@index([collectionId])
+}
+
+// ============================================================
+// CLIENT SHORTLISTS
+// ============================================================
+
+enum ShortlistStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model ClientShortlist {
+  id          String          @id @default(uuid())
+  workspaceId String
+  clientId    String
+  createdById String
+  name        String?
+  status      ShortlistStatus @default(ACTIVE)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  client      Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  items       ClientShortlistItem[]
+
+  @@index([workspaceId, createdById])
+  @@index([clientId])
+}
+
+model ClientShortlistItem {
+  id          String   @id @default(uuid())
+  shortlistId String
+  listingId   String
+  addedAt     DateTime @default(now())
+  notes       String?
+  sentAt      DateTime?
+
+  shortlist   ClientShortlist  @relation(fields: [shortlistId], references: [id], onDelete: Cascade)
+  listing     WorkspaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([shortlistId, listingId])
+  @@index([shortlistId])
+}
