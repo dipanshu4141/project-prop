@@ -4,13 +4,14 @@ import {
   OnModuleInit,
   OnModuleDestroy,
 } from '@nestjs/common';
+import { useDbAuthState } from './db-auth-state';
 import {
   makeWASocket,
-  useMultiFileAuthState,
   DisconnectReason,
   WASocket,
   proto,
 } from '@whiskeysockets/baileys';
+
 import { Boom } from '@hapi/boom';
 import * as crypto from 'crypto';
 import { PrismaService } from '../../core/prisma/prisma.service';
@@ -20,6 +21,7 @@ import { PreClassifierService } from '../messages/pre-classifier.service';
 import { IngestionPhone } from '@prisma/client';
 import { fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import P from 'pino';
+
 
 type SessionStatus = 'CONNECTED' | 'DISCONNECTED' | 'QR_PENDING' | 'CONNECTING';
 
@@ -73,7 +75,7 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const { state, saveCreds } = await useMultiFileAuthState(phone.sessionPath);
+    const { state, saveCreds } = await useDbAuthState(this.prisma, phone.id);
 
     const { version } = await fetchLatestBaileysVersion();
     const sock = makeWASocket({
@@ -135,9 +137,10 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
         if (fresh?.active) {
           this.sessions.delete(phone.id);
           if (isLoggedOut || isRejected) {
-            // Clear stored creds so Baileys starts fresh and shows QR
-            const fs = await import('fs/promises');
-            await fs.rm(phone.sessionPath, { recursive: true, force: true }).catch(() => {});
+            // Clear DB auth state so fresh QR is generated
+            await this.prisma.waAuthState.deleteMany({
+              where: { id: { startsWith: `${phone.id}:` } },
+            });
           }
           setTimeout(() => this.startSession(fresh), 3000);
         } else {
