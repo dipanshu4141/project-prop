@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Building2, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -9,25 +9,34 @@ import { apiPost } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { AuthUser, AuthWorkspace } from '@/context/AuthContext';
 
+
 // ── Inner component (uses useSearchParams — must be inside Suspense) ──────────
 
 function LoginForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
-  const { login }    = useAuth();
+  // const { login }    = useAuth();
 
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [showPw,   setShowPw]   = useState(false);
-  const [loading,  setLoading]  = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error,    setError]    = useState('');
   const verified = searchParams.get('verified');
+  const { login, user, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace('/v2/dashboard');
+    }
+  }, [user, loading, router]);
+
 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       const data = await apiPost<{ user: AuthUser; workspace: AuthWorkspace }>(
@@ -46,7 +55,7 @@ function LoginForm() {
     } catch (err: any) {
       setError(err.message ?? 'Invalid email or password');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
@@ -127,11 +136,11 @@ function LoginForm() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={submitting}
               className="w-full h-10 rounded-lg bg-[#0B1F14] text-[13.5px] font-semibold text-white hover:bg-[#1A3525] disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 mt-2"
             >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? 'Signing in…' : 'Sign in'}
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {submitting ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
             <div className="mt-4">
