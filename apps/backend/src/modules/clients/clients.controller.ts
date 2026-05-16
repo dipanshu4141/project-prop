@@ -15,6 +15,7 @@ import { JwtAuthGuard } from '../../auth/guards/auth.guards';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../../auth/jwt-payload.interface';
 import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { ShortlistsService } from '../shortlists/shortlists.service';
 
 
 
@@ -32,7 +33,11 @@ class ShareTokenByPhoneDto {
 @Controller('clients')
 @UseGuards(JwtAuthGuard)
 export class ClientsController {
-  constructor(private readonly clientsService: ClientsService) {}
+
+  constructor(
+    private readonly clientsService: ClientsService,
+    private readonly shortlistsService: ShortlistsService,
+  ) {}
 
   private ctx(user: JwtPayload): CallerContext {
       return {
@@ -229,5 +234,10 @@ export class ClientsController {
       user.sub,
       body.name,
     );
+  }
+
+  @Get(':id/shortlists')
+  getClientShortlists(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.shortlistsService.listForClient(user.workspaceId, id);
   }
 }

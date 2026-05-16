@@ -25,8 +25,11 @@ import { DashboardService }    from './modules/dashboard/dashboard.service';
 import { PreClassifierService } from './modules/messages/pre-classifier.service';
 import { MessageCacheService } from './modules/messages/message-cache.service';
 import { MediaModule } from './modules/media/media.module';
-
+import { CollectionsModule } from './modules/collections/collections.module';
+import { ShortlistsModule }  from './modules/shortlists/shortlists.module';
 import { IngestionModule } from './modules/ingestion/ingestion.module';
+
+
 
 
 @Module({
@@ -53,6 +56,8 @@ import { IngestionModule } from './modules/ingestion/ingestion.module';
     OnboardingModule,
     DedupModule,
     IngestionModule,
+    CollectionsModule,
+    ShortlistsModule,
   ],
   controllers: [AppController, DealsController, DashboardController],
   providers:   [DealsService, DashboardService],
