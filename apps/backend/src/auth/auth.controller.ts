@@ -25,10 +25,10 @@ const IS_PROD = process.env.NODE_ENV === 'production';
 const BASE_COOKIE = {
   httpOnly: true,
   secure:   IS_PROD,
-  sameSite: (IS_PROD ? 'none' : 'lax') as 'none' | 'lax',
-  domain:   IS_PROD ? '.growcliento.com' : undefined,
+  sameSite: 'lax' as const,
   path:     '/',
 };
+
 
 
 const ACCESS_COOKIE  = { ...BASE_COOKIE, maxAge: 15 * 60 * 1000 };
@@ -42,8 +42,7 @@ function setCookies(res: Response, accessToken: string, refreshToken: string) {
 function clearCookies(res: Response) {
   const opts = {
     path:     '/',
-    domain:   IS_PROD ? '.growcliento.com' : undefined,
-    sameSite: (IS_PROD ? 'none' : 'lax') as 'none' | 'lax',
+    sameSite: 'lax' as const,
     secure:   IS_PROD,
   };
   res.clearCookie('access_token',  opts);
