@@ -70,7 +70,7 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
 
   /* fetch existing media */
   useEffect(() => {
-    fetch(`/api/media/listing/${listingId}`)
+    fetch(`/api/media/listing/${listingId}`, { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => setMedia(Array.isArray(d) ? d : []))
       .catch(() => setMedia([]))
@@ -92,7 +92,7 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
         file: f,
         preview: URL.createObjectURL(f),
         type: mimeToMediaType(f.type)!,
-        compressed: false,
+        compressed: true,
         status: "pending",
       }));
     setQueue((q) => [...q, ...items]);
@@ -109,7 +109,7 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
         file: f,
         preview: URL.createObjectURL(f),
         type: mimeToMediaType(f.type)!,
-        compressed: false,
+        compressed: true,
         status: "pending",
       }));
     setQueue((q) => [...q, ...items]);
@@ -236,10 +236,13 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
         body: JSON.stringify({ mediaId, canonicalPropertyId }),
       });
       if (!res.ok) throw new Error();
-      setMedia((m) =>
-        m.map((it) => (it.id === mediaId ? { ...it, isShared: true } : it))
-      );
-      showToast("Shared to community pool");
+        setMedia((m) =>
+        m.map((it) =>
+            it.id === mediaId ? { ...it, isShared: !it.isShared } : it
+        )
+        );
+        const wasShared = media.find((it) => it.id === mediaId)?.isShared;
+        showToast(wasShared ? "Made private" : "Shared to community");
     } catch {
       showToast("Share failed", false);
     }
@@ -298,7 +301,7 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
               Drop photos & videos here
             </p>
             <p className="text-[11px] text-slate-400">
-              JPG, PNG, WEBP, MP4 · Original or compressed — your choice
+                JPG, PNG, WEBP, MP4 · Compressed by default · toggle HD per file
             </p>
           </div>
         )}
@@ -351,7 +354,7 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
                           : "bg-slate-200 text-slate-500 hover:bg-slate-300",
                       ].join(" ")}
                     >
-                      {item.compressed ? "Compressed" : "Original"}
+                        {item.compressed ? "Compressed" : "HD"}
                     </button>
                   )}
 
@@ -427,10 +430,10 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
                   onView={() => setLightbox(item)}
                   onDelete={() => deleteMedia(item.id)}
                   onShare={
-                    canonicalPropertyId && !item.isShared
-                      ? () => shareMedia(item.id)
-                      : undefined
-                  }
+                    canonicalPropertyId
+                        ? () => shareMedia(item.id)
+                        : undefined
+                    }
                 />
               ))}
             </div>
@@ -551,13 +554,13 @@ function MediaTile({
         <div className="absolute inset-0 flex flex-col items-end justify-between bg-black/40 p-1.5">
           <div className="flex gap-1">
             {onShare && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onShare(); }}
-                className="rounded-lg bg-white/20 p-1.5 text-white hover:bg-white/30 transition-colors"
-                title="Share to community"
-              >
-                <Share2 className="h-3 w-3" />
-              </button>
+                <button
+                    onClick={(e) => { e.stopPropagation(); onShare(); }}
+                    className="rounded-lg bg-white/20 p-1.5 text-white hover:bg-white/30 transition-colors"
+                    title={item.isShared ? "Make private" : "Share to community"}
+                >
+                    <Share2 className="h-3 w-3" />
+                </button>
             )}
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
