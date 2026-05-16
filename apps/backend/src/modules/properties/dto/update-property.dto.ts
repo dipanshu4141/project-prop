@@ -1,4 +1,6 @@
-import { IsOptional, IsString, IsNumber, IsEnum, IsDateString, IsArray } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsEnum, IsDateString, IsArray, IsBoolean } from 'class-validator';
+
+
 
 export enum LeadStage {
   NEW = 'NEW',
@@ -10,6 +12,22 @@ export enum LeadStage {
 }
 
 export class UpdatePropertyDto {
+
+  
+// add these inside the class:
+  @IsOptional() @IsString()  listingType?:        string;
+  @IsOptional() @IsString()  propertyCategory?:   string;
+  @IsOptional() @IsString()  propertySubType?:    string;
+  @IsOptional() @IsNumber()  floor?:              number;
+  @IsOptional() @IsNumber()  totalFloors?:        number;
+  @IsOptional() @IsBoolean() negotiable?:         boolean;
+  @IsOptional() @IsString()  urgencyLevel?:       string;
+  @IsOptional() @IsString()  country?:            string;
+  @IsOptional() @IsString()  city?:               string;
+  @IsOptional() @IsString()  area?:               string;
+  @IsOptional() @IsArray()   tenantTypes?:        string[];
+  @IsOptional() @IsArray()   tenantRestrictions?: string[];
+  @IsOptional() @IsString()  notes?:              string;
 
   @IsOptional()
   @IsString()

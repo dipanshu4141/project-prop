@@ -12,10 +12,11 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { IsIn, IsString, IsNotEmpty } from 'class-validator';
+import { IsIn, IsNotEmpty } from 'class-validator';
 import { JwtAuthGuard } from '../../auth/guards/auth.guards';
 import { ListingsService, type AvailabilityStatus } from './listings.service';
 import { CreateListingDto } from './create-listing.dto';
+import { UpdateListingDto } from './update-listing.dto';
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
@@ -128,6 +129,13 @@ export class ListingsController {
       req.user.sub,
       body,
     );
+  }
+
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  updateListing(@Param('id') id: string, @Body() body: UpdateListingDto, @Request() req: any) {
+    console.log('>>> updateListing hit', id, body);
+    return this.listingsService.updateListing(id, body, req.user.workspaceId);
   }
  
 }

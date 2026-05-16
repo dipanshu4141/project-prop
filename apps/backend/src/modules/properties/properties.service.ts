@@ -74,7 +74,13 @@ export class PropertiesService {
 
         if (existingListing) {
           this.logger.log(`Skipping duplicate listing for canonical ${canonicalPropertyId}`);
-          // Still attach agents in case new phones were found
+          
+          // Update lastSeenAt so the card shows fresh activity
+          await this.prisma.workspaceListing.update({
+            where: { id: existingListing.id },
+            data:  { lastSeenAt: message.receivedAt },
+          });
+
           await this.attachAgentsToListing(workspaceId, existingListing.id, aiContacts, rawText, cleanSender, contactBlock.agentName, contactBlock.firmName);
           continue;
         }
