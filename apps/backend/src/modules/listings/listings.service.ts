@@ -387,6 +387,7 @@ export class ListingsService {
       return created;
     });
 
+    
     // ── 4. Emit UsageEvent (non-blocking) ────────────────────────────────────
     this.prisma.usageEvent.create({
       data: {
@@ -396,11 +397,53 @@ export class ListingsService {
         properties: { source: 'manual', refCode, listingType: dto.listingType },
       },
     }).catch(() => {/* fire and forget */});
-
+    
     return {
       ...listing,
       price:   listing.price   ? Number(listing.price)   / 100 : null,
       deposit: listing.deposit ? Number(listing.deposit) / 100 : null,
     };
   }
+  
+      async updateListing(id: string, dto: any, workspaceId: string) {
+        const existing = await this.prisma.workspaceListing.findFirst({
+          where:  { id, workspaceId },
+          select: { id: true },
+        });
+        if (!existing) throw new NotFoundException('Listing not found');
+  
+        const data: Prisma.WorkspaceListingUpdateInput = {};
+  
+        if (dto.listingType        != null) data.listingType      = dto.listingType;
+        if (dto.propertyCategory   != null) data.propertyCategory = dto.propertyCategory;
+        if (dto.propertySubType    != null) data.propertySubType  = dto.propertySubType;
+        if (dto.bhk                != null) data.bhk              = dto.bhk;
+        if (dto.areaSqft           != null) data.areaSqft         = Number(dto.areaSqft);
+        if (dto.furnishing         != null) data.furnishing        = dto.furnishing;
+        if (dto.floor              != null) data.floor             = Number(dto.floor);
+        if (dto.totalFloors        != null) data.totalFloors       = Number(dto.totalFloors);
+        if (dto.status             != null) data.status            = dto.status;
+        if (dto.urgencyLevel       != null) data.urgencyLevel      = dto.urgencyLevel;
+        if (dto.negotiable         != null) data.negotiable        = dto.negotiable;
+        if (dto.availableFrom      != null) data.availableFrom     = new Date(dto.availableFrom);
+        if (dto.country            != null) data.country           = dto.country;
+        if (dto.city               != null) data.city              = dto.city;
+        if (dto.area               != null) data.area              = dto.area;
+        if (dto.location           != null) data.location          = dto.location;
+        if (dto.building           != null) data.building          = dto.building;
+        if (dto.tenantTypes        != null) data.tenantTypes       = dto.tenantTypes;
+        if (dto.tenantRestrictions != null) data.tenantRestrictions = dto.tenantRestrictions;
+        if (dto.notes              != null) data.notes             = dto.notes;
+  
+        // price/deposit come in as raw numbers (paise) from the frontend
+        if (dto.price   != null) data.price   = BigInt(Math.round(Number(dto.price)));
+        if (dto.deposit != null) data.deposit = BigInt(Math.round(Number(dto.deposit)));
+  
+        const updated = await this.prisma.workspaceListing.update({
+          where: { id },
+          data,
+        });
+  
+        return { ...updated, price: updated.price?.toString() ?? null, deposit: updated.deposit?.toString() ?? null };
+      }
   }

@@ -90,7 +90,7 @@ export class PropertiesController {
   update(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() dto: UpdatePropertyDto,
+    @Body() dto: any,
   ) {
     return this.propertiesService.update(user.workspaceId, id, dto);
   }
