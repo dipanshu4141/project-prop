@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -27,6 +28,7 @@ interface MediaItem {
   source: "BROKER_UPLOAD" | "WHATSAPP_INGESTED";
   countedInQuota: boolean;
   createdAt: string;
+  workspaceId: string;  
 }
 
 interface UploadFile {
@@ -67,6 +69,8 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
   const [lightbox, setLightbox] = useState<MediaItem | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { workspace } = useAuth();
+  const currentWorkspaceId = workspace?.id;
 
   /* fetch existing media */
   useEffect(() => {
@@ -430,7 +434,7 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
                   onView={() => setLightbox(item)}
                   onDelete={() => deleteMedia(item.id)}
                   onShare={
-                    canonicalPropertyId
+                    canonicalPropertyId && item.workspaceId === currentWorkspaceId
                         ? () => shareMedia(item.id)
                         : undefined
                     }
