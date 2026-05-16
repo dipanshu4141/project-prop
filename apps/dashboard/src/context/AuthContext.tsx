@@ -158,14 +158,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* ── Logout — revokes server session + clears cookies ── */
   const logout = useCallback(async () => {
-    try {
-      await apiPost('/auth/logout', {});
-    } catch {
-      /* best effort */
-    }
+    // Clear state immediately — don't wait for server
     setState({ user: null, workspace: null, loading: false });
-    router.push('/login');
-  }, [router]);
+    
+    // Best effort server-side cookie clear
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {}
+    
+    // Hard redirect — clears all React state
+    window.location.href = '/login';
+  }, []);
 
   const isAdmin   = useCallback(() => state.user?.platformRole === 'SUPERADMIN', [state.user]);
   const isSupport = useCallback(() => state.user?.platformRole === 'SUPPORT',    [state.user]);
