@@ -108,12 +108,7 @@ export class AuthController {
    */
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(JwtRefreshGuard)
-  async logout(
-    @Req() req: Request & { user: { sessionId: string } },
-    @Res() res: Response,
-  ) {
-    await this.authService.logout(req.user.sessionId);
+  async logout(@Res() res: Response) {
     clearCookies(res);
     return res.status(HttpStatus.NO_CONTENT).send();
   }
