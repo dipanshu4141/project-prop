@@ -14,7 +14,7 @@ type Collection = {
 
 type Props = {
   listingId: string;
-  onClose:   () => void;
+  onClose:   (isSaved: boolean) => void;
 };
 
 export function SaveToCollectionModal({ listingId, onClose }: Props) {
@@ -90,7 +90,8 @@ export function SaveToCollectionModal({ listingId, onClose }: Props) {
   const modal = (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px]"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target === e.currentTarget && onClose(savedIn.size > 0)}
+
     >
       <div
         className="w-full max-w-sm flex flex-col rounded-2xl bg-white shadow-2xl overflow-hidden"
@@ -104,7 +105,7 @@ export function SaveToCollectionModal({ listingId, onClose }: Props) {
             </div>
             <p className="text-[14px] font-semibold text-slate-900">Save to collection</p>
           </div>
-          <button onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition-colors">
+          <button onClick={() => onClose(savedIn.size > 0)} className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -213,7 +214,8 @@ export function SaveToCollectionModal({ listingId, onClose }: Props) {
         {/* Footer */}
         <div className="border-t border-slate-100 px-5 py-3.5">
           <button
-            onClick={onClose}
+          onClick={() => onClose(false)}
+
             className="w-full rounded-lg bg-slate-100 py-2 text-[13px] font-medium text-slate-700 hover:bg-slate-200 transition-colors"
           >
             Done
