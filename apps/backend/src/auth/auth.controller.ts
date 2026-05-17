@@ -40,14 +40,23 @@ function setCookies(res: Response, accessToken: string, refreshToken: string) {
 }
 
 function clearCookies(res: Response) {
-  const opts = {
-    path:     '/',
-    sameSite: 'lax' as const,
-    secure:   IS_PROD,
-  };
-  res.clearCookie('access_token',  opts);
-  res.clearCookie('refresh_token', opts);
+  const cookieNames = ['access_token', 'refresh_token'];
+  const variants = [
+    // With domain (old cookies)
+    { path: '/', domain: '.growcliento.com', sameSite: 'lax' as const, secure: true },
+    // Without domain (new cookies)
+    { path: '/', sameSite: 'lax' as const, secure: true },
+    // Local dev
+    { path: '/', sameSite: 'lax' as const, secure: false },
+  ];
+  
+  for (const name of cookieNames) {
+    for (const opts of variants) {
+      res.clearCookie(name, opts);
+    }
+  }
 }
+
 
 @Controller('auth')
 export class AuthController {

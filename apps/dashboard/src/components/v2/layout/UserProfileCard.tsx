@@ -24,7 +24,7 @@ export function UserProfileCard({ mobileCompact = false, collapsed = false }: Pr
 
   const handleLogout = async () => {
     try {
-      await apiPost("/api/auth/logout", {});
+      await apiPost("/auth/logout", {});
     } catch {
       // ignore — clear client state regardless
     }
