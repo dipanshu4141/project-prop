@@ -156,14 +156,15 @@ export class AuthController {
     @Res() res: Response,
   ) {
     const result = await this.authService.googleAuth(req.user, req);
-    setCookies(res, result.accessToken, result.refreshToken);
-    // Redirect to frontend
-    const isNewUser = !result.workspace.name; // rough check
-    const redirectUrl = !result.planSelected
-        ? `${process.env.FRONTEND_URL}/onboarding?step=plan&type=INDIVIDUAL`
-        : `${process.env.FRONTEND_URL}/v2/dashboard`;
-      res.redirect(redirectUrl);
 
+    const redirectBase = process.env.FRONTEND_URL;
+    const params = new URLSearchParams({
+      access_token:  result.accessToken,
+      refresh_token: result.refreshToken,
+      plan_selected: String(result.planSelected ?? false),
+    });
+
+    res.redirect(`${redirectBase}/api/auth/google/callback?${params.toString()}`);
   }
 
   // Verify email
