@@ -92,4 +92,19 @@ export class CollectionsService {
     });
     return { savedInCollections: items.map((i) => i.collectionId) };
   }
+
+  async getBatchSavedStatus(workspaceId: string, userId: string, listingIds: string[]) {
+    const items = await this.prisma.savedCollectionItem.findMany({
+        where: {
+        listingId: { in: listingIds },
+        collection: { workspaceId, createdById: userId },
+        },
+        select: { listingId: true },
+    });
+    const savedSet = new Set(items.map((i) => i.listingId));
+    return listingIds.reduce((acc, id) => {
+        acc[id] = savedSet.has(id);
+        return acc;
+    }, {} as Record<string, boolean>);
+    }
 }

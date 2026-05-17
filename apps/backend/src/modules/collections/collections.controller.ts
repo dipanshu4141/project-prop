@@ -64,4 +64,13 @@ export class CollectionsController {
   savedStatus(@CurrentUser() user: JwtPayload, @Param('listingId') listingId: string) {
     return this.svc.getSavedStatus(user.workspaceId, user.sub, listingId);
   }
+
+
+  @Post('saved-status/batch')
+    batchSavedStatus(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { listingIds: string[] },
+    ) {
+    return this.svc.getBatchSavedStatus(user.workspaceId, user.sub, body.listingIds);
+    }
 }

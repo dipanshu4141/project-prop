@@ -4,7 +4,7 @@ const BACKEND = process.env.BACKEND_URL!;
 
 async function proxy(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const { path } = await params;
-  const url = `${BACKEND}/shortlists/${path.join('/')}`;
+  const url = `${BACKEND}/api/shortlists/${path.join('/')}`;
   const res = await fetch(url, {
     method:  req.method,
     headers: {

@@ -275,6 +275,13 @@ type Agent = {
   phones?: string[] | string | null;
 };
 
+type Props = {
+  listingId: string;
+  onClose:   (isSaved: boolean) => void;
+};
+
+
+
 export type Property = {
   id:              string;
   refCode:         string;
@@ -301,11 +308,12 @@ export type Property = {
 };
 
 type PropertyCardProps = {
-  property:        Property;
-  selectionMode?:  boolean;
-  selected?:       boolean;
-  onToggleSelect?: () => void;
-  onView?:         () => void;
+  property:            Property;
+  selectionMode?:      boolean;
+  selected?:           boolean;
+  savedInCollection?:  boolean;
+  onToggleSelect?:     () => void;
+  onView?:             () => void;
 };
 
 /* ------------------------------------------------------------------ */
@@ -358,9 +366,11 @@ export function PropertyCard({
   property,
   selectionMode  = false,
   selected       = false,
+  savedInCollection = false,
   onToggleSelect,
   onView,
 }: PropertyCardProps) {
+
   const VALID_STATUSES = new Set(['AVAILABLE', 'UNDER_NEGOTIATION', 'CLOSED', 'ON_HOLD']);
   const [availability, setAvailability] = useState<AvailabilityStatus>(
     VALID_STATUSES.has(property.availability) ? property.availability : 'AVAILABLE',
@@ -486,7 +496,7 @@ export function PropertyCard({
         </div> */}
       {/* ADD THIS */}
           {!selectionMode && (
-            <SaveToCollectionButton listingId={property.id} />
+            <SaveToCollectionButton listingId={property.id} saved={savedInCollection} />
           )}
 
         <div className="flex items-center gap-1 flex-shrink-0">

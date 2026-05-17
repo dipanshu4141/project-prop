@@ -5,8 +5,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LayoutGrid, List, Share2, X, ChevronLeft, ChevronRight, FolderPlus } from 'lucide-react';
-import { apiGet } from '@/lib/api';
+// import { apiGet } from '@/lib/api';
 import { AddToShortlistModal } from '@/components/v2/shortlists/AddToShortlistModal';
+import { apiGet, apiPost } from '@/lib/api';
 
 
 import PropertyFilters, {
@@ -111,6 +112,8 @@ export default function PropertiesClient() {
   const [pages,   setPages]   = useState(1);
   const [loading, setLoading] = useState(false);
   const lastQueryRef = useRef(searchParams.toString());
+  const [savedMap, setSavedMap] = useState<Record<string, boolean>>({});
+
 
   const [selectedMap,   setSelectedMap]   = useState<Record<string, Property | null>>({});
   const [selectionMode, setSelectionMode] = useState(false);
@@ -224,12 +227,14 @@ export default function PropertiesClient() {
     router.push(`?${params.toString()}`);
   }
 
+
+  // ADD effect after fetchProperties sets items — replace the existing fetchProperties function:
   async function fetchProperties() {
     setLoading(true);
     try {
       const params = new URLSearchParams(searchParams.toString());
       params.set('limit', LIMIT.toString());
-       if (sort === 'urgent' || sort === 'most_shared' || sort === 'last_activity' || sort === 'last_seen') {
+      if (sort === 'urgent' || sort === 'most_shared' || sort === 'last_activity' || sort === 'last_seen') {
         params.set('sort', sort);
         params.delete('sortBy'); params.delete('sortOrder');
       } else {
@@ -241,9 +246,24 @@ export default function PropertiesClient() {
       const data = await apiGet<{ items: Property[]; total: number; pages: number }>(
         `/properties?${params.toString()}`,
       );
-      setItems(data.items  || []);
+      const fetchedItems = data.items || [];
+      setItems(fetchedItems);
       setTotal(data.total  || 0);
       setPages(data.pages  || 1);
+
+      // Fetch saved status for all visible listings
+      if (fetchedItems.length > 0) {
+        try {
+          const { apiPost } = await import('@/lib/api');
+          const saved = await apiPost<Record<string, boolean>>(
+            '/collections/saved-status/batch',
+            { listingIds: fetchedItems.map((p) => p.id) },
+          );
+          setSavedMap(saved);
+        } catch {
+          // non-fatal
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -347,6 +367,7 @@ export default function PropertiesClient() {
                   property={property}
                   selectionMode={selectionMode}
                   selected={Boolean(selectedMap[property.id])}
+                  savedInCollection={savedMap[property.id] ?? false}
                   onToggleSelect={() => toggleSelect(property)}
                   onView={() => {
                     sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
