@@ -1,5 +1,16 @@
 export const runtime = 'edge';
-import { NextRequest } from 'next/server';
-import { proxyRequest } from '../../../_proxy';
+import { NextResponse } from "next/server";
 
-export const GET = (req: NextRequest) => proxyRequest(req, '/api/clients/follow-ups/upcoming');
+export async function GET(req: Request) {
+  const res = await fetch(
+    `${process.env.BACKEND_URL}/properties/leads/followups-overdue`,
+    { cache: "no-store", headers: { cookie: req.headers.get("cookie") ?? "", authorization: req.headers.get("authorization") ?? "" } }
+  );
+
+  if (!res.ok) {
+    return NextResponse.json([], { status: 200 });
+  }
+
+  const data = await res.json();
+  return NextResponse.json(data);
+}
