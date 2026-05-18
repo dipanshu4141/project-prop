@@ -1,18 +1,26 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/fetcher';
+import { apiPost } from '@/lib/api';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LayoutGrid, List, X, ChevronLeft, ChevronRight, FolderPlus } from 'lucide-react';
-import { apiGet, apiPost } from '@/lib/api';
-import { AddToShortlistModal } from '@/components/v2/shortlists/AddToShortlistModal';
-import PropertyFilters, { type PropertyFiltersValue, type DatePreset } from './PropertyFilters';
 import { PropertyCard, type Property } from '@/components/v2/cards/PropertyCard';
+import { AddToShortlistModal } from '@/components/v2/shortlists/AddToShortlistModal';
+import { LayoutGrid, List, X, ChevronLeft, ChevronRight, FolderPlus } from 'lucide-react';
+import PropertyFilters, { type PropertyFiltersValue, type DatePreset } from './PropertyFilters';
 
-const LIMIT = 8;
-const SCROLL_KEY = 'properties-scroll-y';
+/* ------------------------------------------------------------------ */
+/* CONSTANTS                                                           */
+/* ------------------------------------------------------------------ */
+
+const LIMIT         = 8;
+const SCROLL_KEY    = 'properties-scroll-y';
 const SELECTION_KEY = 'property-selection';
+
 const FURNISHING_VALUES = ['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED'] as const;
 const DATE_PRESETS: DatePreset[] = ['TODAY', 'LAST_7_DAYS', 'LAST_14_DAYS', 'LAST_30_DAYS'];
+
 const SORT_OPTIONS = [
   { label: 'Last seen',          value: 'last_seen'      },
   { label: 'Last activity',      value: 'last_activity'  },
@@ -85,10 +93,10 @@ function SkeletonCard() {
 function PageBtn({
   children, active, disabled, onClick, 'aria-label': ariaLabel,
 }: {
-  children: React.ReactNode;
-  active?: boolean;
-  disabled?: boolean;
-  onClick?: () => void;
+  children:     React.ReactNode;
+  active?:      boolean;
+  disabled?:    boolean;
+  onClick?:     () => void;
   'aria-label'?: string;
 }) {
   return (
@@ -115,24 +123,50 @@ export default function PropertiesClient() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
-  // ── Data state ──────────────────────────────────────────────────────
-  const [items,   setItems]   = useState<Property[]>([]);
-  const [total,   setTotal]   = useState(0);
-  const [pages,   setPages]   = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [savedMap, setSavedMap] = useState<Record<string, boolean>>({});
-  const lastQueryRef = useRef(searchParams.toString());
+  const sort = searchParams.get('sort') || 'last_seen';
+  const page = Number(searchParams.get('page') || 1);
 
-  // ── Navigation state ─────────────────────────────────────────────────
-  const [navigatingId, setNavigatingId] = useState<string | null>(null);
+  // ── SWR API URL ──────────────────────────────────────────────────────
+  const apiUrl = useMemo(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('limit', LIMIT.toString());
+    if (['urgent', 'most_shared', 'last_activity', 'last_seen'].includes(sort)) {
+      params.set('sort', sort);
+      params.delete('sortBy');
+      params.delete('sortOrder');
+    } else {
+      const [sortBy, sortOrder] = sort.split('_');
+      params.delete('sort');
+      params.set('sortBy', sortBy);
+      params.set('sortOrder', sortOrder);
+    }
+    return `/api/properties?${params.toString()}`;
+  }, [searchParams, sort]);
 
-  // ── Selection state ───────────────────────────────────────────────────
+  // ── SWR fetch ────────────────────────────────────────────────────────
+  const { data, isLoading } = useSWR<{ items: Property[]; total: number; pages: number }>(
+    apiUrl,
+    fetcher,
+    {
+      revalidateOnFocus:     false,
+      revalidateOnReconnect: true,
+      dedupingInterval:      30000,
+      keepPreviousData:      true,
+    },
+  );
+
+  const loading = isLoading && !data;
+  const items   = data?.items ?? [];
+  const total   = data?.total ?? 0;
+  const pages   = data?.pages ?? 1;
+
+  // ── State ────────────────────────────────────────────────────────────
+  const [savedMap,      setSavedMap]      = useState<Record<string, boolean>>({});
+  const [navigatingId,  setNavigatingId]  = useState<string | null>(null);
   const [selectedMap,   setSelectedMap]   = useState<Record<string, Property | null>>({});
   const [selectionMode, setSelectionMode] = useState(false);
   const [shortlistOpen, setShortlistOpen] = useState(false);
 
-  const page         = Number(searchParams.get('page') || 1);
-  const sort         = searchParams.get('sort') || 'last_seen';
   const selectedCount = Object.keys(selectedMap).length;
 
   // ── Restore selection from sessionStorage on mount ───────────────────
@@ -149,7 +183,7 @@ export default function PropertiesClient() {
     } catch {}
   }, []);
 
-  // ── Persist selection to sessionStorage ─────────────────────────────
+  // ── Persist selection to sessionStorage ──────────────────────────────
   useEffect(() => {
     try {
       if (Object.keys(selectedMap).length > 0) {
@@ -160,18 +194,7 @@ export default function PropertiesClient() {
     } catch {}
   }, [selectedMap]);
 
-  // ── Fetch properties when search params change ───────────────────────
-  useEffect(() => {
-    const currentQuery = searchParams.toString();
-    if (lastQueryRef.current !== currentQuery) {
-      sessionStorage.removeItem(SCROLL_KEY);
-      lastQueryRef.current = currentQuery;
-    }
-    fetchProperties();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams.toString()]);
-
-  // ── Auto-enable selection mode when items are selected ───────────────
+  // ── Auto-enable selection mode ────────────────────────────────────────
   useEffect(() => {
     if (selectedCount > 0) setSelectionMode(true);
   }, [selectedCount]);
@@ -189,7 +212,25 @@ export default function PropertiesClient() {
     });
   }, [items]);
 
-  // ── Selection helpers ────────────────────────────────────────────────
+  // ── Fetch saved status when items change ──────────────────────────────
+  useEffect(() => {
+    if (items.length === 0) return;
+    apiPost<Record<string, boolean>>(
+      '/collections/saved-status/batch',
+      { listingIds: items.map((p) => p.id) },
+    ).then(setSavedMap).catch(() => {});
+  }, [items]);
+
+  // ── Prefetch next page ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!data || page >= pages) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', String(page + 1));
+    params.set('limit', LIMIT.toString());
+    fetcher(`/api/properties?${params.toString()}`).catch(() => {});
+  }, [data, page, pages, searchParams]);
+
+  // ── Selection helpers ─────────────────────────────────────────────────
   function toggleSelect(property: Property) {
     setSelectedMap((prev) => {
       const copy = { ...prev };
@@ -205,7 +246,7 @@ export default function PropertiesClient() {
     sessionStorage.removeItem(SELECTION_KEY);
   }
 
-  // ── Filters ──────────────────────────────────────────────────────────
+  // ── Filters ───────────────────────────────────────────────────────────
   const filters: PropertyFiltersValue = useMemo(() => {
     const rawPreset = searchParams.get('datePreset');
     return {
@@ -254,47 +295,10 @@ export default function PropertiesClient() {
     router.push(`?${params.toString()}`);
   }
 
-  // ── Data fetching ────────────────────────────────────────────────────
-  async function fetchProperties() {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set('limit', LIMIT.toString());
-      if (['urgent', 'most_shared', 'last_activity', 'last_seen'].includes(sort)) {
-        params.set('sort', sort);
-        params.delete('sortBy');
-        params.delete('sortOrder');
-      } else {
-        const [sortBy, sortOrder] = sort.split('_');
-        params.delete('sort');
-        params.set('sortBy', sortBy);
-        params.set('sortOrder', sortOrder);
-      }
-
-      const data = await apiGet<{ items: Property[]; total: number; pages: number }>(
-        `/properties?${params.toString()}`,
-      );
-      const fetchedItems = data.items || [];
-      setItems(fetchedItems);
-      setTotal(data.total || 0);
-      setPages(data.pages || 1);
-
-      // Non-blocking saved status fetch
-      if (fetchedItems.length > 0) {
-        apiPost<Record<string, boolean>>(
-          '/collections/saved-status/batch',
-          { listingIds: fetchedItems.map((p) => p.id) },
-        ).then(setSavedMap).catch(() => {});
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // ── Render ───────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────
   return (
     <>
-      {/* ── FULL-BLEED FILTER + TOOLBAR ── */}
+      {/* ── FILTER + TOOLBAR ── */}
       <div className="-mx-6">
         <div className="relative z-20">
           <PropertyFilters value={filters} onChange={applyFilters} isOpen={true} onToggle={() => {}} />
@@ -302,7 +306,7 @@ export default function PropertiesClient() {
 
         <div className="relative z-10 flex items-center justify-between px-6 py-3 bg-white border-b border-slate-100">
           <div className="flex items-center gap-3">
-            {!loading && total > 0 && (
+            {total > 0 && (
               <p className="text-[13px] text-slate-500">
                 <span className="font-semibold text-slate-800">{total.toLocaleString('en-IN')}</span> properties
               </p>
@@ -363,7 +367,7 @@ export default function PropertiesClient() {
           </div>
         )}
 
-        {!loading && items.length > 0 && (
+        {items.length > 0 && (
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
             {items.map((property) => (
               <div
@@ -401,7 +405,7 @@ export default function PropertiesClient() {
         )}
 
         {/* ── PAGINATION ── */}
-        {!loading && pages > 1 && (
+        {pages > 1 && (
           <div className="mt-8 flex items-center justify-center gap-1.5">
             <PageBtn
               disabled={page <= 1}
@@ -435,18 +439,16 @@ export default function PropertiesClient() {
       </div>
 
       {/* ── FLOATING SELECTION BAR ── */}
-      <div
-        className={[
-          'fixed bottom-6 left-1/2 z-50 -translate-x-1/2',
-          'flex min-w-[340px] items-center gap-4 rounded-2xl',
-          'bg-[#0B1F14] px-5 py-3.5',
-          'border border-white/10 shadow-2xl',
-          'transition-all duration-300 ease-out',
-          selectedCount > 0
-            ? 'translate-y-0 opacity-100 pointer-events-auto'
-            : 'translate-y-6 opacity-0 pointer-events-none',
-        ].join(' ')}
-      >
+      <div className={[
+        'fixed bottom-6 left-1/2 z-50 -translate-x-1/2',
+        'flex min-w-[340px] items-center gap-4 rounded-2xl',
+        'bg-[#0B1F14] px-5 py-3.5',
+        'border border-white/10 shadow-2xl',
+        'transition-all duration-300 ease-out',
+        selectedCount > 0
+          ? 'translate-y-0 opacity-100 pointer-events-auto'
+          : 'translate-y-6 opacity-0 pointer-events-none',
+      ].join(' ')}>
         <div className="flex items-center gap-2.5">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-bold text-white">
             {selectedCount}
@@ -477,10 +479,7 @@ export default function PropertiesClient() {
       {shortlistOpen && (
         <AddToShortlistModal
           listingIds={Object.keys(selectedMap)}
-          onClose={() => {
-            setShortlistOpen(false);
-            clearSelection();
-          }}
+          onClose={() => { setShortlistOpen(false); clearSelection(); }}
         />
       )}
     </>

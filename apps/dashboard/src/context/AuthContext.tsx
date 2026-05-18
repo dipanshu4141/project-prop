@@ -1,18 +1,5 @@
 "use client";
 
-/**
- * apps/dashboard/src/context/AuthContext.tsx
- *
- * Provides:
- *   - user         — current user from JWT (null = not logged in)
- *   - workspace    — current workspace
- *   - loading      — true while restoring session on mount
- *   - login()      — call after successful /auth/login
- *   - logout()     — clears session + redirects
- *   - isAdmin()    — true if SUPERADMIN
- *   - isSupport()  — true if SUPPORT
- */
-
 import {
   createContext,
   useContext,
@@ -21,12 +8,6 @@ import {
   useCallback,
   ReactNode,
 } from 'react';
-import { useRouter } from 'next/navigation';
-import { apiGet, apiPost } from '@/lib/api';
-
-/* ------------------------------------------------------------------ */
-/* TYPES                                                               */
-/* ------------------------------------------------------------------ */
 
 export type AuthUser = {
   id:           string;
@@ -51,79 +32,61 @@ type AuthState = {
 };
 
 type AuthContextValue = AuthState & {
-  login:      (user: AuthUser, workspace: AuthWorkspace) => void;
-  logout:     () => Promise<void>;
-  isAdmin:    () => boolean;
-  isSupport:  () => boolean;
+  login:     (user: AuthUser, workspace: AuthWorkspace) => void;
+  logout:    () => Promise<void>;
+  isAdmin:   () => boolean;
+  isSupport: () => boolean;
 };
-
-
-/* ------------------------------------------------------------------ */
-/* CONTEXT                                                             */
-/* ------------------------------------------------------------------ */
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-/* ------------------------------------------------------------------ */
-/* PROVIDER                                                            */
-/* ------------------------------------------------------------------ */
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const router = useRouter();
-
   const [state, setState] = useState<AuthState>({
-    user:      null,
+    user:     null,
     workspace: null,
-    loading:   true,
+    loading:  true,
   });
 
-  /* ── Restore session on mount ── */
   useEffect(() => {
-    const cached = sessionStorage.getItem('auth_cache');
-    if (cached) {
+    const restore = async () => {
+      // 1. Check sessionStorage cache first
       try {
-        const { user, workspace, ts } = JSON.parse(cached);
-        if (Date.now() - ts < 5 * 60 * 1000) { // 5 min cache
-          setState({ user, workspace, loading: false });
-          return;
+        const cached = sessionStorage.getItem('auth_user');
+        if (cached) {
+          const { user, workspace, ts } = JSON.parse(cached);
+          if (Date.now() - ts < 10 * 60 * 1000) {
+            setState({ user, workspace, loading: false });
+            return;
+          }
         }
       } catch {}
-    }
-    const restore = async () => {
+
+      // 2. Try /auth/me
       try {
-        // Try /auth/me first
         const res = await fetch('/api/auth/me', { credentials: 'include' });
 
         if (res.ok) {
           const payload = await res.json();
-          setState({
-            user: {
-              id:           payload.sub,
-              email:        payload.email,
-              name:         payload.name ?? null,
-              platformRole: payload.platformRole,
-            },
-            workspace: {
-              id:           payload.workspaceId,
-              name:         '',
-              slug:         '',
-              type:         'INDIVIDUAL',
-              role:         payload.role,
-              planSelected: payload.planSelected ?? false,
-            },
-            loading: false,
-          });
-
-          sessionStorage.setItem('auth_cache', JSON.stringify({
-            user: { id: payload.sub, email: payload.email, name: payload.name ?? null, platformRole: payload.platformRole },
-            workspace: { id: payload.workspaceId, name: '', slug: '', type: 'INDIVIDUAL', role: payload.role, planSelected: payload.planSelected ?? false },
-            ts: Date.now(),
-          }));
-
+          const user: AuthUser = {
+            id:           payload.sub,
+            email:        payload.email,
+            name:         payload.name ?? null,
+            platformRole: payload.platformRole,
+          };
+          const workspace: AuthWorkspace = {
+            id:           payload.workspaceId,
+            name:         '',
+            slug:         '',
+            type:         'INDIVIDUAL',
+            role:         payload.role,
+            planSelected: payload.planSelected ?? false,
+          };
+          setState({ user, workspace, loading: false });
+          sessionStorage.setItem('auth_user', JSON.stringify({ user, workspace, ts: Date.now() }));
           return;
         }
 
-        // 401 — try refresh before giving up
+        // 3. 401 — try refresh
         if (res.status === 401) {
           const refreshRes = await fetch('/api/auth/refresh', {
             method:      'POST',
@@ -131,35 +94,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
 
           if (refreshRes.ok) {
-            // Retry /auth/me with new access token
             const retryRes = await fetch('/api/auth/me', { credentials: 'include' });
             if (retryRes.ok) {
               const payload = await retryRes.json();
-              setState({
-                user: {
-                  id:           payload.sub,
-                  email:        payload.email,
-                  name:         payload.name ?? null,
-                  platformRole: payload.platformRole,
-                },
-                workspace: {
-                  id:           payload.workspaceId,
-                  name:         '',
-                  slug:         '',
-                  type:         'INDIVIDUAL',
-                  role:         payload.role,
-                  planSelected: payload.planSelected ?? false,
-                },
-                loading: false,
-              });
+              const user: AuthUser = {
+                id:           payload.sub,
+                email:        payload.email,
+                name:         payload.name ?? null,
+                platformRole: payload.platformRole,
+              };
+              const workspace: AuthWorkspace = {
+                id:           payload.workspaceId,
+                name:         '',
+                slug:         '',
+                type:         'INDIVIDUAL',
+                role:         payload.role,
+                planSelected: payload.planSelected ?? false,
+              };
+              setState({ user, workspace, loading: false });
+              sessionStorage.setItem('auth_user', JSON.stringify({ user, workspace, ts: Date.now() }));
               return;
             }
           }
         }
 
-        // Both failed — not logged in
+        // 4. Both failed
         setState({ user: null, workspace: null, loading: false });
-
       } catch {
         setState({ user: null, workspace: null, loading: false });
       }
@@ -168,26 +128,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     restore();
   }, []);
 
-
-  /* ── Called after successful login/register ── */
   const login = useCallback((user: AuthUser, workspace: AuthWorkspace) => {
     setState({ user, workspace, loading: false });
+    sessionStorage.setItem('auth_user', JSON.stringify({ user, workspace, ts: Date.now() }));
   }, []);
 
-  /* ── Logout — revokes server session + clears cookies ── */
   const logout = useCallback(async () => {
-    // Clear state immediately — don't wait for server
     setState({ user: null, workspace: null, loading: false });
-    
-    // Best effort server-side cookie clear
+    sessionStorage.removeItem('auth_user');
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch {}
-    
-    // Hard redirect — clears all React state
     window.location.href = '/login';
   }, []);
 
@@ -200,10 +151,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* HOOK                                                                */
-/* ------------------------------------------------------------------ */
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
