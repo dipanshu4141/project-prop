@@ -25,11 +25,23 @@ const IS_PROD = process.env.NODE_ENV === 'production';
 const BASE_COOKIE = {
   httpOnly: true,
   secure:   IS_PROD,
-  sameSite: 'lax' as const,
+  sameSite: (IS_PROD ? 'none' : 'lax') as 'none' | 'lax',
+  domain:   IS_PROD ? '.growcliento.com' : undefined,
   path:     '/',
 };
 
-
+function clearCookies(res: Response) {
+  const cookieNames = ['access_token', 'refresh_token'];
+  const variants = [
+    { path: '/', domain: '.growcliento.com', sameSite: 'none' as const, secure: true },
+    { path: '/', sameSite: 'lax' as const, secure: false },
+  ];
+  for (const name of cookieNames) {
+    for (const opts of variants) {
+      res.clearCookie(name, opts);
+    }
+  }
+}
 
 const ACCESS_COOKIE  = { ...BASE_COOKIE, maxAge: 15 * 60 * 1000 };
 const REFRESH_COOKIE = { ...BASE_COOKIE, maxAge: 30 * 24 * 60 * 60 * 1000 };
@@ -38,25 +50,6 @@ function setCookies(res: Response, accessToken: string, refreshToken: string) {
   res.cookie('access_token',  accessToken,  ACCESS_COOKIE);
   res.cookie('refresh_token', refreshToken, REFRESH_COOKIE);
 }
-
-function clearCookies(res: Response) {
-  const cookieNames = ['access_token', 'refresh_token'];
-  const variants = [
-    // With domain (old cookies)
-    { path: '/', domain: '.growcliento.com', sameSite: 'lax' as const, secure: true },
-    // Without domain (new cookies)
-    { path: '/', sameSite: 'lax' as const, secure: true },
-    // Local dev
-    { path: '/', sameSite: 'lax' as const, secure: false },
-  ];
-  
-  for (const name of cookieNames) {
-    for (const opts of variants) {
-      res.clearCookie(name, opts);
-    }
-  }
-}
-
 
 @Controller('auth')
 export class AuthController {

@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // apps/dashboard/src/app/api/admin/[...path]/route.ts
 //
 // Single catch-all proxy for ALL admin routes.
