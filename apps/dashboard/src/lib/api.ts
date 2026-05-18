@@ -3,11 +3,17 @@
  *
  * Thin fetch wrapper that:
  *  - Always sends cookies (credentials: 'include')
+ *  - Auth routes (/auth/*) always go through Next.js proxy for cookie handling
+ *  - Data routes go direct to Railway via NEXT_PUBLIC_API_URL for speed
  *  - On 401, silently calls /auth/refresh and retries once
  *  - On second 401, redirects to /login
  */
 
+// Direct to Railway — fast, for all data calls
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? '') + '/api';
+
+// Always through Next.js proxy — for auth cookie setting/clearing
+const AUTH_BASE = '/api';
 
 let isRefreshing = false;
 let refreshQueue: Array<() => void> = [];
@@ -19,7 +25,7 @@ function drainQueue() {
 
 async function tryRefresh(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await fetch('/api/auth/refresh', {
       method:      'POST',
       credentials: 'include',
     });
@@ -33,11 +39,13 @@ export async function api<T = any>(
   path:    string,
   options: RequestInit = {},
 ): Promise<T> {
-  const url = `${API_BASE}${path}`;
+  // Auth routes always go through proxy, everything else goes direct
+  const base = path.startsWith('/auth/') ? AUTH_BASE : API_BASE;
+  const url  = `${base}${path}`;
 
   const res = await fetch(url, {
     ...options,
-    credentials: 'include',    // always send cookies
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -53,7 +61,6 @@ export async function api<T = any>(
   // 401 — try to refresh once
   if (res.status === 401) {
     if (isRefreshing) {
-      // Queue this request until refresh completes
       await new Promise<void>((resolve) => refreshQueue.push(resolve));
       return api<T>(path, options);
     }
@@ -64,18 +71,17 @@ export async function api<T = any>(
     drainQueue();
 
     if (refreshed) {
-      // Retry original request with new cookies
       return api<T>(path, options);
     }
 
-    // Refresh failed — session is dead, redirect to login
+    // Refresh failed — redirect to login
     if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-        window.location.href = '/login';
+      window.location.href = '/login';
     }
     throw new Error('Session expired');
   }
 
-  // Other error — parse and throw
+  // Other errors — parse and throw
   const errorBody = await res.text().catch(() => '');
   let message = `API error ${res.status}`;
   try {
@@ -86,8 +92,7 @@ export async function api<T = any>(
 }
 
 /* ── Convenience wrappers ── */
-
-export const apiGet  = <T>(path: string)                => api<T>(path, { method: 'GET' });
-export const apiPost = <T>(path: string, body: unknown)  => api<T>(path, { method: 'POST',  body: JSON.stringify(body) });
-export const apiPatch= <T>(path: string, body: unknown)  => api<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
-export const apiDel  = <T>(path: string)                => api<T>(path, { method: 'DELETE' });
+export const apiGet   = <T>(path: string)               => api<T>(path, { method: 'GET'    });
+export const apiPost  = <T>(path: string, body: unknown) => api<T>(path, { method: 'POST',  body: JSON.stringify(body) });
+export const apiPatch = <T>(path: string, body: unknown) => api<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
+export const apiDel   = <T>(path: string)               => api<T>(path, { method: 'DELETE' });
