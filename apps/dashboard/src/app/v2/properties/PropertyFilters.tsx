@@ -260,31 +260,32 @@ export default function PropertyFilters({ value, onChange }: Props) {
   useEffect(() => { setDraft(value); }, [value]);
 
   function update<K extends keyof PropertyFiltersValue>(key: K, val: PropertyFiltersValue[K]) {
-    const next = { ...draft, [key]: val };
-    setDraft(next);
-    onChange(next);
+    setDraft(prev => ({ ...prev, [key]: val }));
   }
 
   function toggleArr<K extends keyof PropertyFiltersValue>(key: K, val: string) {
-    const arr = (draft[key] as string[]) ?? [];
-    const next = {
-      ...draft,
-      [key]: arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val],
-    };
-    setDraft(next);
-    onChange(next);
+    setDraft(prev => {
+      const arr = (prev[key] as string[]) ?? [];
+      return {
+        ...prev,
+        [key]: arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val],
+      };
+    });
   }
 
   function selectPreset(preset: DatePreset) {
-    const next = { ...draft, datePreset: preset, fromDate: undefined, toDate: undefined };
-    setDraft(next);
-    onChange(next);
+    setDraft(prev => ({ ...prev, datePreset: preset, fromDate: undefined, toDate: undefined }));
   }
 
   function clearAll() {
     setDraft({});
     onChange({});
   }
+
+  function applyFilters() {
+    onChange(draft);
+  }
+
 
   const isRent        = draft.listingType !== "SALE";
   const isResidential = draft.propertyCategory !== "COMMERCIAL";
@@ -295,7 +296,7 @@ export default function PropertyFilters({ value, onChange }: Props) {
   const tenantActive = (draft.tenantTypes?.length ?? 0) + (draft.tenantRestrictions?.length ?? 0);
   const dateActive   = draft.datePreset || draft.fromDate || draft.toDate ? 1 : 0;
   const priceActive  = draft.minPrice || draft.maxPrice ? 1 : 0;
-
+  
   return (
     <div className="w-full bg-white border-b border-slate-100 sticky top-0 rounded-t-lg">
       <div className="flex items-center gap-2 px-6 py-3 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -469,6 +470,14 @@ export default function PropertyFilters({ value, onChange }: Props) {
             className="h-8 pl-8 pr-3 w-48 rounded-lg border border-slate-200 text-xs text-slate-700 placeholder:text-slate-400 bg-slate-50 focus:bg-white focus:outline-none focus:border-slate-400 focus:w-56 transition-all duration-200"
           />
         </div>
+
+        {/* ── APPLY ── */}
+        <button
+          onClick={applyFilters}
+          className="flex-shrink-0 h-8 px-4 rounded-lg text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+        >
+          Apply
+        </button>
 
         {/* ── CLEAR ALL ── */}
         {activeCount > 0 && (

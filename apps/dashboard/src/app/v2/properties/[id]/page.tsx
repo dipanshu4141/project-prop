@@ -1,5 +1,4 @@
 import { PageContainer } from "@/components/v2/layout/PageContainer";
-import { PropertyHeader } from "@/components/v2/property/PropertyHeader";
 import { PropertyActivityTimeline } from "@/components/v2/property/PropertyActivityTimeline";
 import { PropertyDetails } from "@/components/v2/property/PropertyDetails";
 import { WhatsAppMessageCard } from "@/components/v2/property/WhatsAppMessageCard";
@@ -28,24 +27,6 @@ async function getPropertyLeads(id: string) {
 async function getPropertyActivities(id: string) {
   try { return await serverGet<any[]>(`/properties/${id}/activities`); }
   catch { return []; }
-}
-
-async function getPropertyNeighbors(id: string, filtersQuery: string) {
-  try { return await serverGet<any>(`/properties/${id}/neighbors?${filtersQuery}`); }
-  catch { return { prevId: null, nextId: null }; }
-}
-
-/* ------------------------------------------------------------------ */
-/* HELPERS                                                             */
-/* ------------------------------------------------------------------ */
-
-function buildFiltersQuery(searchParams: Record<string, string | string[] | undefined>) {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(searchParams)) {
-    if (typeof value === "string") params.set(key, value);
-    else if (Array.isArray(value)) params.set(key, value.join(","));
-  }
-  return params.toString();
 }
 
 /* ------------------------------------------------------------------ */
@@ -77,28 +58,24 @@ function ErrorState() {
 
 export default async function PropertyDetailsPage({
   params,
-  searchParams,
 }: {
-  params:       Promise<{ id: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  params: Promise<{ id: string }>;
 }) {
-  const { id }               = await params;
-  const resolvedSearchParams = await searchParams;
-  const filtersQuery         = buildFiltersQuery(resolvedSearchParams);
+  const { id } = await params;
 
-  let property: any, leads: any[], activities: any[], neighbors: any;
+  let property: any, leads: any[], activities: any[];
 
   try {
-    [property, leads, activities, neighbors] = await Promise.all([
+    [property, leads, activities] = await Promise.all([
       getProperty(id),
       getPropertyLeads(id),
       getPropertyActivities(id),
-      getPropertyNeighbors(id, filtersQuery),
     ]);
   } catch (err) {
-    console.error('PropertyDetailsPage fetch failed:', err); // ← add this
+    console.error('PropertyDetailsPage fetch failed:', err);
     return <ErrorState />;
   }
+
 
   const title = property.bhk
     ? `${property.bhk} ${property.propertySubType}`
@@ -117,18 +94,10 @@ export default async function PropertyDetailsPage({
         </p>
 
         <div className="flex items-center gap-2">
-          <PropertyHeader
-            title={title}
-            propertyId={property.id}
-            status={property.status}
-            prevId={neighbors?.prevId ?? null}
-            nextId={neighbors?.nextId ?? null}
-            compact
-          />
-          <PropertyStatusSelect
+          {/* <PropertyStatusSelect
             listingId={property.id}
             current={property.availability}
-          />
+          /> */}
           <DeletePropertyButton
             propertyId={property.id}
             propertyLabel={title}

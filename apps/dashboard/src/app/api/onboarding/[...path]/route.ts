@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // apps/dashboard/src/app/api/onboarding/[...path]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';

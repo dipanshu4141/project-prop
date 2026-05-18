@@ -57,6 +57,7 @@ type AuthContextValue = AuthState & {
   isSupport:  () => boolean;
 };
 
+
 /* ------------------------------------------------------------------ */
 /* CONTEXT                                                             */
 /* ------------------------------------------------------------------ */
@@ -78,6 +79,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* ── Restore session on mount ── */
   useEffect(() => {
+    const cached = sessionStorage.getItem('auth_cache');
+    if (cached) {
+      try {
+        const { user, workspace, ts } = JSON.parse(cached);
+        if (Date.now() - ts < 5 * 60 * 1000) { // 5 min cache
+          setState({ user, workspace, loading: false });
+          return;
+        }
+      } catch {}
+    }
     const restore = async () => {
       try {
         // Try /auth/me first
@@ -102,6 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             },
             loading: false,
           });
+
+          sessionStorage.setItem('auth_cache', JSON.stringify({
+            user: { id: payload.sub, email: payload.email, name: payload.name ?? null, platformRole: payload.platformRole },
+            workspace: { id: payload.workspaceId, name: '', slug: '', type: 'INDIVIDUAL', role: payload.role, planSelected: payload.planSelected ?? false },
+            ts: Date.now(),
+          }));
+
           return;
         }
 
