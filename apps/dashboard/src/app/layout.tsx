@@ -3,11 +3,8 @@ import { Providers } from "./providers";
 import "./globals.css";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Property AI",
-  description: "AI Powered Real Estate CRM for Brokers",
-  manifest: "/manifest.json",
-  themeColor: "#0f172a",
+export const viewport = {
+  themeColor: '#0f172a',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
