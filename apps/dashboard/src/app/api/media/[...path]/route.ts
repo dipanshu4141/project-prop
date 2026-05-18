@@ -1,12 +1,64 @@
 export const runtime = 'edge';
-import { NextRequest } from 'next/server';
-import { proxyRequest } from '../../_proxy';
+import { NextRequest, NextResponse } from "next/server";
+const BACKEND_URL = process.env.BACKEND_URL!;
 
-type C = { params: Promise<{ path: string[] }> };
-const handler = async (req: NextRequest, { params }: C) =>
-  proxyRequest(req, `/api/media/${(await params).path.join('/')}`);
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
+  const { path } = await params;
+  const url = new URL(request.url);
+  const backendUrl = `${BACKEND_URL}/api/media/${path.join("/")}${url.search}`;
 
-export const GET    = handler;
-export const POST   = handler;
-export const PATCH  = handler;
-export const DELETE = handler;
+  const res = await fetch(backendUrl, {
+    headers: {
+      "Content-Type": "application/json",
+      cookie: request.headers.get("cookie") || "",
+    },
+    cache: "no-store",
+  });
+
+  const data = await res.text();
+  return new NextResponse(data, { status: res.status });
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
+  const { path } = await params;
+  const url = new URL(request.url);
+  const backendUrl = `${BACKEND_URL}/api/media/${path.join("/")}${url.search}`;
+
+  const res = await fetch(backendUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: request.headers.get("cookie") || "",
+    },
+    body: await request.text(),
+    cache: "no-store",
+  });
+
+  const data = await res.text();
+  return new NextResponse(data, { status: res.status });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
+  const { path } = await params;
+  const backendUrl = `${BACKEND_URL}/api/media/${path.join("/")}`;
+
+  const res = await fetch(backendUrl, {
+    method: "DELETE",
+    headers: {
+      cookie: request.headers.get("cookie") || "",
+    },
+    cache: "no-store",
+  });
+
+  const data = await res.text();
+  return new NextResponse(data, { status: res.status });
+}
