@@ -7,33 +7,31 @@ export const viewport = {
   themeColor: '#0f172a',
 };
 
+export const metadata: Metadata = {
+  title: 'PropertyAI',
+  description: 'AI Powered Real Estate CRM',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'PropertyAI',
+  },
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full">
       <head>
-        {/* iOS PWA Support */}
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
       </head>
-
       <body className="h-full">
-        <Providers> 
+        <Providers>
           <AuthProvider>
             {children}
           </AuthProvider>
-        </Providers> 
+        </Providers>
       </body>
     </html>
   );
 }
-
-/**
- * apps/dashboard/src/app/layout.tsx
- *
- * Add <AuthProvider> here so every page and component has access to useAuth().
- * Drop this into your existing root layout, wrapping {children}.
- */
-
-
-// Your existing layout — just add AuthProvider around {children}:
