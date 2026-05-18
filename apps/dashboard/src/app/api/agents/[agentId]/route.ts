@@ -1,35 +1,7 @@
 export const runtime = 'edge';
-import { NextResponse } from "next/server";
+import { NextRequest } from 'next/server';
+import { proxyRequest } from '../../_proxy';
 
-const BACKEND_URL = process.env.BACKEND_URL!;
-
-export async function GET(req: Request,
-  context: { params: Promise<{ agentId: string }> }
-) {
-  try {
-    // ✅ App Router: params must be awaited
-    const { agentId } = await context.params;
-
-    const res = await fetch(
-      `${BACKEND_URL}/agents/${agentId}`,
-      { cache: "no-store", headers: { cookie: req.headers.get("cookie") ?? "", authorization: req.headers.get("authorization") ?? "" } }
-    );
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "Backend error", status: res.status },
-        { status: res.status }
-      );
-    }
-
-    const data = await res.json();
-    return NextResponse.json(data);
-
-  } catch (err) {
-    console.error("🔥 API /agents/[id] crashed:", err);
-    return NextResponse.json(
-      { error: "API route failed" },
-      { status: 500 }
-    );
-  }
-}
+type C = { params: Promise<{ agentId: string }> };
+export const GET   = async (req: NextRequest, { params }: C) => proxyRequest(req, `/api/agents/${(await params).agentId}`);
+export const PATCH = async (req: NextRequest, { params }: C) => proxyRequest(req, `/api/agents/${(await params).agentId}`);

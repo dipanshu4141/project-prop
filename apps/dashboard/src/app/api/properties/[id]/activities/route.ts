@@ -1,34 +1,7 @@
 export const runtime = 'edge';
-import { NextResponse } from "next/server";
+import { NextRequest } from 'next/server';
+import { proxyRequest } from '../../../_proxy';
 
-const BACKEND_URL = process.env.BACKEND_URL!;
-
-export async function GET(req: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await context.params;
-
-    const res = await fetch(
-      `${BACKEND_URL}/api/properties/${id}/activities`,
-      {
-        cache: "no-store",
-        headers: {
-          authorization: req.headers.get("authorization") ?? "",
-          cookie: req.headers.get("cookie") ?? "",
-        },
-      }
-    );
-
-    if (!res.ok) {
-      const err = await res.text();
-      console.error("ACTIVITIES ERROR:", res.status, err);
-      return NextResponse.json([], { status: res.status });
-    }
-
-    return NextResponse.json(await res.json());
-  } catch (e) {
-    console.error("ACTIVITIES API CRASH:", e);
-    return NextResponse.json([], { status: 500 });
-  }
-}
+type C = { params: Promise<{ id: string }> };
+export const GET = async (req: NextRequest, { params }: C) =>
+  proxyRequest(req, `/api/properties/${(await params).id}/activities`);
