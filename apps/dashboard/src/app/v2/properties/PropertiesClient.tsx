@@ -6,9 +6,11 @@ import { apiPost } from '@/lib/api';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PropertyCard, type Property } from '@/components/v2/cards/PropertyCard';
-import { AddToShortlistModal } from '@/components/v2/shortlists/AddToShortlistModal';
-import { LayoutGrid, List, X, ChevronLeft, ChevronRight, FolderPlus } from 'lucide-react';
+import { ShareMultiplePropertiesModal } from '@/components/v2/property/ShareMultiplePropertiesModal';
+import { LayoutGrid, List, X, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import PropertyFilters, { type PropertyFiltersValue, type DatePreset } from './PropertyFilters';
+
+
 
 /* ------------------------------------------------------------------ */
 /* CONSTANTS                                                           */
@@ -126,6 +128,8 @@ export default function PropertiesClient() {
   const sort = searchParams.get('sort') || 'last_seen';
   const page = Number(searchParams.get('page') || 1);
 
+  const [shareOpen, setShareOpen] = useState(false);
+
   // ── SWR API URL ──────────────────────────────────────────────────────
   const apiUrl = useMemo(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -165,7 +169,6 @@ export default function PropertiesClient() {
   const [navigatingId,  setNavigatingId]  = useState<string | null>(null);
   const [selectedMap,   setSelectedMap]   = useState<Record<string, Property | null>>({});
   const [selectionMode, setSelectionMode] = useState(false);
-  const [shortlistOpen, setShortlistOpen] = useState(false);
 
   const selectedCount = Object.keys(selectedMap).length;
 
@@ -465,23 +468,22 @@ export default function PropertiesClient() {
             <X className="h-3.5 w-3.5" />
           </button>
           <button
-            onClick={() => setShortlistOpen(true)}
-            disabled={selectedCount > 20}
+            onClick={() => setShareOpen(true)}
+            disabled={selectedCount === 0}
             className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 px-4 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
           >
-            <FolderPlus className="h-3.5 w-3.5" />
-            Add to shortlist
+            <Share2 className="h-3.5 w-3.5" />
+            Share via WhatsApp
           </button>
+
         </div>
       </div>
-
-      {/* ── MODALS ── */}
-      {shortlistOpen && (
-        <AddToShortlistModal
-          listingIds={Object.keys(selectedMap)}
-          onClose={() => { setShortlistOpen(false); clearSelection(); }}
-        />
-      )}
+          {shareOpen && (
+            <ShareMultiplePropertiesModal
+              propertiesMap={selectedMap}
+              onClose={() => { setShareOpen(false); clearSelection(); }}
+            />
+          )}
     </>
   );
 }
