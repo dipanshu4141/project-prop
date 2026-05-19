@@ -14,6 +14,9 @@ import { apiGet }            from '@/lib/api';
 import { CreateClientModal } from '@/components/v2/clients/CreateClientModal';
 import { useAuth }           from '@/context/AuthContext';
 
+import useSWR from 'swr';
+import { fetcher } from '@/lib/fetcher';
+
 /* ------------------------------------------------------------------ */
 /* TYPES                                                               */
 /* ------------------------------------------------------------------ */
@@ -175,17 +178,27 @@ function MobileLeadCard({ lead }: { lead: LeadRow }) {
 
 function ShortlistsTab() {
   const router = useRouter();
-  const [shortlists, setShortlists] = useState<ShortlistRow[]>([]);
-  const [loading,    setLoading]    = useState(true);
   const [query,      setQuery]      = useState('');
 
-  useEffect(() => {
-    setLoading(true);
-    apiGet<ShortlistRow[]>('/shortlists')
-      .then((d) => setShortlists(Array.isArray(d) ? d : []))
-      .catch(() => setShortlists([]))
-      .finally(() => setLoading(false));
-  }, []);
+  // const [shortlists, setShortlists] = useState<ShortlistRow[]>([]);
+  // const [loading,    setLoading]    = useState(true);
+
+  // useEffect(() => {
+  //   setLoading(true);
+  //   apiGet<ShortlistRow[]>('/shortlists')
+  //     .then((d) => setShortlists(Array.isArray(d) ? d : []))
+  //     .catch(() => setShortlists([]))
+  //     .finally(() => setLoading(false));
+  // }, []);
+
+  const { data, isLoading } = useSWR<ShortlistRow[]>(
+    '/shortlists',
+    fetcher,
+    { dedupingInterval: 30000, revalidateOnFocus: false },
+  );
+  const shortlists = data ?? [];
+  const loading    = isLoading && !data;
+
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -304,25 +317,34 @@ export default function ClientsPage() {
   const router              = useRouter();
   const { user, workspace } = useAuth();
   const isOwner             = workspace?.role === 'OWNER';
-
-  const [mainTab, setMainTab] = useState<MainTab>('LEADS');
-  const [leads,   setLeads]   = useState<LeadRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [query,   setQuery]   = useState('');
   const [filter,  setFilter]  = useState<FilterValue>('ALL');
   const [showCreateClient, setShowCreateClient] = useState(false);
+  const [mainTab, setMainTab] = useState<MainTab>('LEADS');
 
-  const loadLeads = useCallback(() => {
-    setLoading(true);
-    apiGet<LeadRow[]>('/clients/leads')
-      .then((data) => setLeads(Array.isArray(data) ? data : []))
-      .catch(() => setLeads([]))
-      .finally(() => setLoading(false));
-  }, []);
+  // const [leads,   setLeads]   = useState<LeadRow[]>([]);
+  // const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (mainTab === 'LEADS') loadLeads();
-  }, [mainTab, loadLeads]);
+  // const loadLeads = useCallback(() => {
+  //   setLoading(true);
+  //   apiGet<LeadRow[]>('/clients/leads')
+  //     .then((data) => setLeads(Array.isArray(data) ? data : []))
+  //     .catch(() => setLeads([]))
+  //     .finally(() => setLoading(false));
+  // }, []);
+
+  // useEffect(() => {
+  //   if (mainTab === 'LEADS') loadLeads();
+  // }, [mainTab, loadLeads]);
+
+  const { data: leadsData, isLoading: leadsLoading } = useSWR<LeadRow[]>(
+    '/clients/leads',
+    fetcher,
+    { dedupingInterval: 30000, revalidateOnFocus: false, keepPreviousData: true },
+  );
+  const leads   = leadsData ?? [];
+  const loading = leadsLoading && !leadsData;
+
 
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {

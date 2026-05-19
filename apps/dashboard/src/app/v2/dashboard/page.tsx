@@ -488,6 +488,8 @@ import {
   Handshake,
   Radio,
 } from "lucide-react";
+import useSWR from 'swr';
+import { fetcher } from '@/lib/fetcher';
 
 
 /* ------------------------------------------------------------------ */
@@ -719,22 +721,42 @@ function SectionCard({
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
-  const [today, setToday] = useState<FollowUpItem[]>([]);
-  const [upcoming, setUpcoming] = useState<FollowUpItem[]>([]);
-  const [stats, setStats] = useState<DashboardStats>({
-    totalClients: 0,
-    activeClients: 0,
-    listingsThisMonth: 0,
-    dealsInProgress: 0,
-    commissionThisMonth: 0,
-  });
 
-  useEffect(() => {
-    if (!user) return;
-    apiGet<FollowUpItem[]>('/clients/follow-ups/today').then(setToday).catch(() => {});
-    apiGet<FollowUpItem[]>('/clients/follow-ups/upcoming').then(setUpcoming).catch(() => {});
-    apiGet<DashboardStats>('/dashboard/stats').then(setStats).catch(() => {});
-  }, [user]);
+  const { data: today    = [] } = useSWR<FollowUpItem[]>(
+    user ? '/clients/follow-ups/today' : null,
+    fetcher,
+    { dedupingInterval: 60000, revalidateOnFocus: false },
+  );
+  const { data: upcoming = [] } = useSWR<FollowUpItem[]>(
+    user ? '/clients/follow-ups/upcoming' : null,
+    fetcher,
+    { dedupingInterval: 60000, revalidateOnFocus: false },
+  );
+  const { data: stats = {
+    totalClients: 0, activeClients: 0, listingsThisMonth: 0,
+    dealsInProgress: 0, commissionThisMonth: 0,
+  } } = useSWR<DashboardStats>(
+    user ? '/dashboard/stats' : null,
+    fetcher,
+    { dedupingInterval: 60000, revalidateOnFocus: false },
+  );
+
+  // const [today, setToday] = useState<FollowUpItem[]>([]);
+  // const [upcoming, setUpcoming] = useState<FollowUpItem[]>([]);
+  // const [stats, setStats] = useState<DashboardStats>({
+  //   totalClients: 0,
+  //   activeClients: 0,
+  //   listingsThisMonth: 0,
+  //   dealsInProgress: 0,
+  //   commissionThisMonth: 0,
+  // });
+
+  // useEffect(() => {
+  //   if (!user) return;
+  //   apiGet<FollowUpItem[]>('/clients/follow-ups/today').then(setToday).catch(() => {});
+  //   apiGet<FollowUpItem[]>('/clients/follow-ups/upcoming').then(setUpcoming).catch(() => {});
+  //   apiGet<DashboardStats>('/dashboard/stats').then(setStats).catch(() => {});
+  // }, [user]);
 
    if (loading) return null;
 
