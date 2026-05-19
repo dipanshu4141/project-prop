@@ -22,7 +22,7 @@ import { useAuth } from "@/context/AuthContext";
 
 const NAV_ITEMS = [
   { href: "/v2/dashboard",  label: "Dashboard",       icon: LayoutDashboard },
-  { href: "/v2/clients-hub",      label: "Clients Hub",            icon: Users           },
+  { href: "/v2/leads",      label: "Leads",            icon: Users           },
   { href: "/v2/properties", label: "Properties",       icon: Building2       },
   { href: "/v2/deals",      label: "Deals",            icon: Handshake       },
   { label: 'Collections', href: '/v2/collections', icon: Bookmark },
@@ -35,7 +35,7 @@ const NAV_ITEMS = [
 
 const MOBILE_NAV_ITEMS = [
   { href: "/v2/dashboard",  label: "Home",       icon: LayoutDashboard },
-  { href: "/v2/clients-hub",      label: "Leads",      icon: Users           },
+  { href: "/v2/leads",      label: "Leads",      icon: Users           },
   { href: "/v2/properties", label: "Properties", icon: Building2       },
   { href: "/v2/deals",      label: "Deals",      icon: Handshake       },
   { href: "/v2/groups",     label: "WA Groups",        icon: Radio           },
