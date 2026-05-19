@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 import { apiGet } from "@/lib/api";
 import { AgentListTable } from "@/components/v2/agents/AgentListTable";
+import useSWR from 'swr';
+import { fetcher } from '@/lib/fetcher';
 
 /* ------------------------------------------------------------------ */
 /* PAGE BUTTON                                                         */
@@ -73,32 +75,55 @@ function SkeletonRow() {
 /* ------------------------------------------------------------------ */
 
 export function AgentList() {
-  const [agents,         setAgents]         = useState<any[]>([]);
   const [page,           setPage]           = useState(1);
   const [limit]                             = useState(8);
   const [sortBy,         setSortBy]         = useState("createdAt");
   const [sortOrder,      setSortOrder]      = useState<"asc" | "desc">("desc");
   const [query,          setQuery]          = useState("");
-  const [meta,           setMeta]           = useState<any>(null);
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [loading,        setLoading]        = useState(true);
 
-  /* ── fetch ── */
-  useEffect(() => {
-    setLoading(true);
+  const apiUrl = useMemo(() => {
     const params = new URLSearchParams({
-      page: String(page),
-      limit: String(limit),
+      page:      String(page),
+      limit:     String(limit),
       sortBy,
       sortOrder,
     });
-    if (debouncedQuery) params.set("q", debouncedQuery);
-
-    apiGet<{ items: any[]; meta: any }>(`/agents?${params.toString()}`)
-      .then((d) => { setAgents(d.items); setMeta(d.meta); })
-      .catch(() => { setAgents([]); setMeta(null); })
-      .finally(() => setLoading(false));
+    if (debouncedQuery) params.set('q', debouncedQuery);
+    return `/agents?${params.toString()}`;
   }, [page, limit, sortBy, sortOrder, debouncedQuery]);
+
+  const { data, isLoading } = useSWR<{ items: any[]; meta: any }>(
+    apiUrl,
+    fetcher,
+    { dedupingInterval: 10000, revalidateOnFocus: false, keepPreviousData: true },
+  );
+
+  const agents  = data?.items ?? [];
+  const meta    = data?.meta  ?? null;
+  const loading = isLoading && !data;
+
+  
+  // const [agents,         setAgents]         = useState<any[]>([]);
+  // const [meta,           setMeta]           = useState<any>(null);
+  // const [loading,        setLoading]        = useState(true);
+
+  /* ── fetch ── */
+  // useEffect(() => {
+  //   setLoading(true);
+  //   const params = new URLSearchParams({
+  //     page: String(page),
+  //     limit: String(limit),
+  //     sortBy,
+  //     sortOrder,
+  //   });
+  //   if (debouncedQuery) params.set("q", debouncedQuery);
+
+  //   apiGet<{ items: any[]; meta: any }>(`/agents?${params.toString()}`)
+  //     .then((d) => { setAgents(d.items); setMeta(d.meta); })
+  //     .catch(() => { setAgents([]); setMeta(null); })
+  //     .finally(() => setLoading(false));
+  // }, [page, limit, sortBy, sortOrder, debouncedQuery]);
 
   /* ── debounce ── */
   useEffect(() => {
