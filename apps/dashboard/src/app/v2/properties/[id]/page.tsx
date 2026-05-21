@@ -5,7 +5,7 @@ import { WhatsAppMessageCard } from "@/components/v2/property/WhatsAppMessageCar
 import { PropertyLeadsDropdown } from "@/components/v2/property/PropertyLeadsDropdown";
 import { DeletePropertyButton } from "@/components/v2/property/DeletePropertyButton";
 import { PropertyStatusSelect } from "@/components/v2/property/PropertyStatusSelect";
-import { StartDealButton } from "@/components/v2/deals/StartDealButton";
+// import { StartDealButton } from "@/components/v2/deals/StartDealButton";
 import { serverGet } from "@/lib/serverApi";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
@@ -87,25 +87,22 @@ export default async function PropertyDetailsPage({
 
       {/* ── STICKY TOP NAV ── */}
       <div className="sticky top-14 lg:top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white px-4 sm:px-6 py-2.5 sm:py-3">
-        <BackButton className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors" />
-
-        <p className="absolute left-1/2 -translate-x-1/2 text-[13px] font-semibold text-slate-700 truncate max-w-[180px] sm:max-w-xs">
+        <div className="flex items-center gap-1.5">
+          <BackButton className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors" />
+        <p className="absolute left-1/2 -translate-x-1/2 text-[13px] font-semibold text-slate-700 truncate max-w-[140px] sm:max-w-xs">
           {title}
         </p>
+        </div>
 
-        <div className="flex items-center gap-2">
-          {/* <PropertyStatusSelect
-            listingId={property.id}
-            current={property.availability}
-          /> */}
           <DeletePropertyButton
             propertyId={property.id}
             propertyLabel={title}
             compact
           />
-          <StartDealButton listingId={property.id} />
-        </div>
+
+        {/* <StartDealButton listingId={property.id} /> */}
       </div>
+
 
       {/* ── PAGE BODY ── */}
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 py-4 sm:py-6 space-y-5">
