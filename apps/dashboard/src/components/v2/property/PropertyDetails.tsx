@@ -240,7 +240,7 @@ export function PropertyDetails({ property }: { property: any }) {
       </div>
 
       {/* ── OVERVIEW ── */}
-      <Section title="Overview">
+      <Section title="Overview" defaultOpen={false}>
         <Row label="Listing type"    value={property.listingType}      editMode={editMode}><SelectInput value={draft.listingType}      options={["RENT","SALE"]}        onChange={(v) => update("listingType", v)} /></Row>
         <Row label="Category"        value={property.propertyCategory} editMode={editMode}><SelectInput value={draft.propertyCategory} options={PROPERTY_CATEGORY_OPTIONS} onChange={(v) => update("propertyCategory", v)} /></Row>
         <Row label="Type"            value={property.propertySubType}  editMode={editMode}><SelectInput value={draft.propertySubType}  options={PROPERTY_TYPE_OPTIONS}  onChange={(v) => update("propertySubType", v)} /></Row>
@@ -253,7 +253,7 @@ export function PropertyDetails({ property }: { property: any }) {
       </Section>
 
       {/* ── PRICING ── */}
-      <Section title="Pricing">
+      <Section title="Pricing" defaultOpen={false}>
         <Row label="Price"    value={editMode ? property.price    : formatPrice(property.price)}   editMode={editMode}><NumberInput value={draft.price}    onChange={(v) => update("price", v)} /></Row>
         <Row label="Deposit"  value={editMode ? property.deposit  : formatPrice(property.deposit)} editMode={editMode}><NumberInput value={draft.deposit}  onChange={(v) => update("deposit", v)} /></Row>
         <Row label="Urgency"  value={property.urgencyLevel}  editMode={editMode}><SelectInput value={draft.urgencyLevel}  options={URGENCY_OPTIONS}  onChange={(v) => update("urgencyLevel", v)} /></Row>

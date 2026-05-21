@@ -55,11 +55,12 @@ const LEAD_STAGE_BADGE: Record<LeadStage, string> = {
 };
 
 type Tab = ClientPropertyStatus;
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'PENDING',        label: 'Pending'       },
-  { key: 'INTERESTED',     label: 'Interested'    },
-  { key: 'NOT_INTERESTED', label: 'Not Interested'},
+const TABS: { key: Tab; label: string; shortLabel: string }[] = [
+  { key: 'PENDING',        label: 'Pending',        shortLabel: 'Pending'  },
+  { key: 'INTERESTED',     label: 'Interested',     shortLabel: 'Interest' },
+  { key: 'NOT_INTERESTED', label: 'Not Interested', shortLabel: 'Not Int.' },
 ];
+
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -252,7 +253,8 @@ export function ClientPropertiesTabs({ clientProperties }: ClientPropertiesTabsP
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100',
               ].join(' ')}
             >
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.shortLabel}</span>
               {counts[tab.key] > 0 && (
                 <span className={[
                   'ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold',
@@ -278,7 +280,7 @@ export function ClientPropertiesTabs({ clientProperties }: ClientPropertiesTabsP
                 <th className="py-2.5 px-2 text-left text-[10.5px] font-semibold text-gray-400 uppercase tracking-wide hidden sm:table-cell">Area</th>
                 <th className="py-2.5 px-2 text-left text-[10.5px] font-semibold text-gray-400 uppercase tracking-wide">Price</th>
                 <th className="py-2.5 px-2 text-left text-[10.5px] font-semibold text-gray-400 uppercase tracking-wide hidden md:table-cell">Pipeline</th>
-                <th className="py-2.5 pl-2 pr-4 text-left text-[10.5px] font-semibold text-gray-400 uppercase tracking-wide">Client</th>
+                <th className="py-2.5 pl-2 pr-4 text-left text-[10.5px] font-semibold text-gray-400 uppercase tracking-wide">Status</th>
               </tr>
             </thead>
             <tbody>
