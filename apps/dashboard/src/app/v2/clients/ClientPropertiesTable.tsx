@@ -46,7 +46,7 @@ export default function ClientPropertiesTable({
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-100">
-            {["Property", "Area", "Price", "Pipeline", "Client", ""].map((col) => (
+            {["Property", "Area", "Price", "Pipeline", "Actions", ""].map((col) => (
               <th key={col} className="px-3 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">
                 {col}
               </th>
@@ -90,7 +90,12 @@ export default function ClientPropertiesTable({
 
                 {/* Client status */}
                 <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation()}>
-                  <ClientPropertyActions clientPropertyId={cp.id} currentStatus={cp.clientStatus ?? cp.status} />
+                  <ClientPropertyActions
+                    clientPropertyId={cp.id}
+                    currentStatus={cp.clientStatus ?? cp.status}
+                    listingId={prop.id}
+                  />
+
                 </td>
 
                 {/* Actions */}

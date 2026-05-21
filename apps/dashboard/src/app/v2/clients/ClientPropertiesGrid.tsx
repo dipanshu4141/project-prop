@@ -73,7 +73,11 @@ export default function ClientPropertiesGrid({
                   propertyLabel={title || "Property"}
                   onSent={() => router.refresh()}
                 />
-                <ClientPropertyActions clientPropertyId={cp.id} currentStatus={cp.status} />
+                <ClientPropertyActions
+                  clientPropertyId={cp.id}
+                  currentStatus={cp.clientStatus ?? cp.status}
+                  listingId={prop.id}
+                />
               </div>
             </div>
 
