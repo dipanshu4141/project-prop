@@ -779,7 +779,7 @@ export default function DashboardPage() {
           footer="All time"
           icon={Users}
           accent="sky"
-          href="/v2/clients"
+          href="/v2/leads"
         />
         <StatCard
           title="Active Clients"
@@ -787,7 +787,7 @@ export default function DashboardPage() {
           footer="Open pipeline"
           icon={Clock}
           accent="amber"
-          href="/v2/clients"
+          href="/v2/leads"
         />
         <StatCard
           title="Deals in Progress"
