@@ -2,53 +2,67 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ImageIcon,
-  VideoIcon,
-  Upload,
-  X,
-  Loader2,
-  Share2,
-  Trash2,
-  ZoomIn,
-  CheckCircle2,
-  AlertCircle,
+  ImageIcon, VideoIcon, Upload, X, Loader2,
+  Share2, Trash2, ZoomIn, CheckCircle2, AlertCircle,
 } from "lucide-react";
+import imageCompression from "browser-image-compression";
 import { useAuth } from "@/context/AuthContext";
 
-/* ─── Types ─────────────────────────────────────────────── */
+/* ─── Types ──────────────────────────────────────────────── */
 
 interface MediaItem {
-  id: string;
-  url: string;
-  type: "IMAGE" | "VIDEO" | "DOCUMENT";
-  mimeType: string;
-  sizeBytes: number;
-  isCompressed: boolean;
-  isShared: boolean;
-  source: "BROKER_UPLOAD" | "WHATSAPP_INGESTED";
+  id:             string;
+  url:            string;
+  type:           "IMAGE" | "VIDEO" | "DOCUMENT";
+  mimeType:       string;
+  sizeBytes:      number;
+  isCompressed:   boolean;
+  isShared:       boolean;
+  source:         "BROKER_UPLOAD" | "WHATSAPP_INGESTED";
   countedInQuota: boolean;
-  createdAt: string;
-  workspaceId: string;  
+  createdAt:      string;
+  workspaceId:    string;
 }
 
 interface UploadFile {
-  file: File;
-  preview: string;
-  type: "IMAGE" | "VIDEO";
+  file:       File;
+  preview:    string;
+  type:       "IMAGE" | "VIDEO";
   compressed: boolean;
-  status: "pending" | "uploading" | "done" | "error";
-  error?: string;
+  status:     "pending" | "compressing" | "uploading" | "done" | "error";
+  error?:     string;
+  originalSize?: number;
+  finalSize?:    number;
 }
 
 interface Props {
-  listingId: string;
+  listingId:           string;
   canonicalPropertyId?: string;
+}
+
+/* ─── Compression ────────────────────────────────────────── */
+
+async function compressIfImage(file: File, compressed: boolean): Promise<File> {
+  if (!file.type.startsWith("image/") || !compressed) return file;
+  try {
+    const blob = await imageCompression(file, {
+      maxSizeMB:        1,
+      maxWidthOrHeight: 1920,
+      useWebWorker:     true,
+      fileType:         "image/webp",
+    });
+    return new File([blob], file.name.replace(/\.[^.]+$/, ".webp"), {
+      type: "image/webp",
+    });
+  } catch {
+    return file;
+  }
 }
 
 /* ─── Helpers ────────────────────────────────────────────── */
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024)      return `${bytes} B`;
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
 }
@@ -62,42 +76,42 @@ function mimeToMediaType(mime: string): "IMAGE" | "VIDEO" | null {
 /* ─── Component ──────────────────────────────────────────── */
 
 export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
-  const [media, setMedia] = useState<MediaItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [queue, setQueue] = useState<UploadFile[]>([]);
-  const [uploading, setUploading] = useState(false);
+  const [media,    setMedia]    = useState<MediaItem[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [queue,    setQueue]    = useState<UploadFile[]>([]);
+  const [uploading,setUploading]= useState(false);
   const [lightbox, setLightbox] = useState<MediaItem | null>(null);
-  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [toast,    setToast]    = useState<{ msg: string; ok: boolean } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { workspace } = useAuth();
   const currentWorkspaceId = workspace?.id;
 
   /* fetch existing media */
   useEffect(() => {
-    fetch(`/api/media/listing/${listingId}`, { credentials: 'include' })
+    fetch(`/api/media/listing/${listingId}`, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => setMedia(Array.isArray(d) ? d : []))
       .catch(() => setMedia([]))
       .finally(() => setLoading(false));
   }, [listingId]);
 
-  /* toast helper */
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 3000);
   };
 
-  /* file picker handler */
+  /* file picker */
   const onFilePick = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     const items: UploadFile[] = files
       .filter((f) => mimeToMediaType(f.type) !== null)
       .map((f) => ({
-        file: f,
-        preview: URL.createObjectURL(f),
-        type: mimeToMediaType(f.type)!,
-        compressed: true,
-        status: "pending",
+        file:         f,
+        preview:      URL.createObjectURL(f),
+        type:         mimeToMediaType(f.type)!,
+        compressed:   true,
+        status:       "pending",
+        originalSize: f.size,
       }));
     setQueue((q) => [...q, ...items]);
     e.target.value = "";
@@ -110,28 +124,21 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
     const items: UploadFile[] = files
       .filter((f) => mimeToMediaType(f.type) !== null)
       .map((f) => ({
-        file: f,
-        preview: URL.createObjectURL(f),
-        type: mimeToMediaType(f.type)!,
-        compressed: true,
-        status: "pending",
+        file:         f,
+        preview:      URL.createObjectURL(f),
+        type:         mimeToMediaType(f.type)!,
+        compressed:   true,
+        status:       "pending",
+        originalSize: f.size,
       }));
     setQueue((q) => [...q, ...items]);
   }, []);
 
-  /* toggle compressed flag in queue */
-  const toggleCompressed = (idx: number) => {
-    setQueue((q) =>
-      q.map((item, i) =>
-        i === idx ? { ...item, compressed: !item.compressed } : item
-      )
-    );
-  };
+  const toggleCompressed = (idx: number) =>
+    setQueue((q) => q.map((item, i) => i === idx ? { ...item, compressed: !item.compressed } : item));
 
-  /* remove from queue */
-  const removeFromQueue = (idx: number) => {
+  const removeFromQueue = (idx: number) =>
     setQueue((q) => q.filter((_, i) => i !== idx));
-  };
 
   /* upload all pending */
   const uploadAll = async () => {
@@ -142,86 +149,85 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
       const item = queue[i];
       if (item.status !== "pending") continue;
 
-      // mark uploading
-      setQueue((q) =>
-        q.map((it, idx) => (idx === i ? { ...it, status: "uploading" } : it))
-      );
+      // ── Compress ──
+      setQueue((q) => q.map((it, idx) => idx === i ? { ...it, status: "compressing" } : it));
+      const fileToUpload = await compressIfImage(item.file, item.compressed);
+      const mimeType  = fileToUpload.type;
+      const sizeBytes = fileToUpload.size;
+
+      setQueue((q) => q.map((it, idx) => idx === i
+        ? { ...it, status: "uploading", finalSize: sizeBytes }
+        : it
+      ));
 
       try {
-        // Step 1 — get presigned URL
+        // Step 1 — presign
         const presignRes = await fetch("/api/media/presign", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method:      "POST",
+          headers:     { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             listingId,
-            type: item.type,
-            mimeType: item.file.type,
-            sizeBytes: item.file.size,
+            type:         item.type,
+            mimeType,
+            sizeBytes,
             isCompressed: item.compressed,
           }),
         });
-
         if (!presignRes.ok) {
           const err = await presignRes.json().catch(() => ({}));
-          throw new Error(err.message ?? "Failed to get upload URL");
+          throw new Error((err as any).message ?? "Failed to get upload URL");
         }
-
         const { presignedUrl, r2Key } = await presignRes.json();
 
-        // Step 2 — PUT directly to R2
+        // Step 2 — PUT compressed file to R2
         const putRes = await fetch(presignedUrl, {
-          method: "PUT",
-          headers: { "Content-Type": item.file.type },
-          body: item.file,
+          method:  "PUT",
+          headers: { "Content-Type": mimeType },
+          body:    fileToUpload,
         });
-
         if (!putRes.ok) throw new Error("Upload to storage failed");
 
-        // Step 3 — confirm with backend
+        // Step 3 — confirm
         const confirmRes = await fetch("/api/media/confirm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method:      "POST",
+          headers:     { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             r2Key,
             listingId,
-            type: item.type,
-            mimeType: item.file.type,
-            sizeBytes: item.file.size,
+            type:         item.type,
+            mimeType,
+            sizeBytes,
             isCompressed: item.compressed,
           }),
         });
-
         if (!confirmRes.ok) throw new Error("Failed to confirm upload");
 
         const newMedia: MediaItem = await confirmRes.json();
-
         setMedia((m) => [...m, newMedia]);
-        setQueue((q) =>
-          q.map((it, idx) => (idx === i ? { ...it, status: "done" } : it))
-        );
+        setQueue((q) => q.map((it, idx) => idx === i ? { ...it, status: "done" } : it));
       } catch (err: any) {
-        setQueue((q) =>
-          q.map((it, idx) =>
-            idx === i
-              ? { ...it, status: "error", error: err.message ?? "Upload failed" }
-              : it
-          )
-        );
+        setQueue((q) => q.map((it, idx) => idx === i
+          ? { ...it, status: "error", error: err.message ?? "Upload failed" }
+          : it
+        ));
       }
     }
 
-    // clear done items after short delay
     setTimeout(() => {
       setQueue((q) => q.filter((it) => it.status !== "done"));
     }, 1500);
-
     setUploading(false);
   };
 
   /* delete */
   const deleteMedia = async (mediaId: string) => {
     try {
-      const res = await fetch(`/api/media/${mediaId}`, { method: "DELETE" });
+      const res = await fetch(`/api/media/${mediaId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
       if (!res.ok) throw new Error();
       setMedia((m) => m.filter((it) => it.id !== mediaId));
       showToast("Photo deleted");
@@ -235,24 +241,20 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
     if (!canonicalPropertyId) return;
     try {
       const res = await fetch("/api/media/share-community", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method:      "POST",
+        headers:     { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ mediaId, canonicalPropertyId }),
       });
       if (!res.ok) throw new Error();
-        setMedia((m) =>
-        m.map((it) =>
-            it.id === mediaId ? { ...it, isShared: !it.isShared } : it
-        )
-        );
-        const wasShared = media.find((it) => it.id === mediaId)?.isShared;
-        showToast(wasShared ? "Made private" : "Shared to community");
+      const wasShared = media.find((it) => it.id === mediaId)?.isShared;
+      setMedia((m) => m.map((it) => it.id === mediaId ? { ...it, isShared: !it.isShared } : it));
+      showToast(wasShared ? "Made private" : "Shared to community");
     } catch {
       showToast("Share failed", false);
     }
   };
 
-  /* split by source */
   const uploaded = media.filter((m) => m.source === "BROKER_UPLOAD");
   const ingested = media.filter((m) => m.source === "WHATSAPP_INGESTED");
 
@@ -290,7 +292,7 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
 
       <div className="px-5 py-4 space-y-5">
 
-        {/* Drop zone — shown when no queue and no media */}
+        {/* Drop zone */}
         {queue.length === 0 && media.length === 0 && !loading && (
           <div
             onDrop={onDrop}
@@ -301,11 +303,9 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
               <Upload className="h-5 w-5 text-slate-400" />
             </div>
-            <p className="text-[13px] font-medium text-slate-600">
-              Drop photos & videos here
-            </p>
+            <p className="text-[13px] font-medium text-slate-600">Drop photos & videos here</p>
             <p className="text-[11px] text-slate-400">
-                JPG, PNG, WEBP, MP4 · Compressed by default · toggle HD per file
+              Auto-compressed to WebP · toggle HD per file · MP4 supported
             </p>
           </div>
         )}
@@ -318,18 +318,11 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
             </p>
             <div className="space-y-2">
               {queue.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5"
-                >
+                <div key={idx} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
                   {/* thumbnail */}
                   <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-slate-200">
                     {item.type === "IMAGE" ? (
-                      <img
-                        src={item.preview}
-                        className="h-full w-full object-cover"
-                        alt=""
-                      />
+                      <img src={item.preview} className="h-full w-full object-cover" alt="" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center">
                         <VideoIcon className="h-5 w-5 text-slate-400" />
@@ -339,11 +332,12 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
 
                   {/* info */}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[12px] font-medium text-slate-700">
-                      {item.file.name}
-                    </p>
+                    <p className="truncate text-[12px] font-medium text-slate-700">{item.file.name}</p>
                     <p className="text-[11px] text-slate-400">
-                      {formatBytes(item.file.size)}
+                      {item.finalSize
+                        ? <>{formatBytes(item.originalSize ?? item.file.size)} → <span className="text-emerald-600 font-medium">{formatBytes(item.finalSize)}</span></>
+                        : formatBytes(item.originalSize ?? item.file.size)
+                      }
                     </p>
                   </div>
 
@@ -352,25 +346,31 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
                     <button
                       onClick={() => toggleCompressed(idx)}
                       className={[
-                        "rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+                        "rounded-md px-2 py-1 text-[11px] font-medium transition-colors flex-shrink-0",
                         item.compressed
                           ? "bg-emerald-100 text-emerald-700"
                           : "bg-slate-200 text-slate-500 hover:bg-slate-300",
                       ].join(" ")}
                     >
-                        {item.compressed ? "Compressed" : "HD"}
+                      {item.compressed ? "WebP" : "HD"}
                     </button>
                   )}
 
-                  {/* status */}
+                  {/* status indicators */}
+                  {item.status === "compressing" && (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
+                      <span className="text-[10px] text-amber-600">Compressing…</span>
+                    </div>
+                  )}
                   {item.status === "uploading" && (
-                    <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                    <Loader2 className="h-4 w-4 animate-spin text-emerald-500 flex-shrink-0" />
                   )}
                   {item.status === "done" && (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                   )}
                   {item.status === "error" && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <AlertCircle className="h-4 w-4 text-red-400" />
                       <span className="text-[11px] text-red-400">{item.error}</span>
                     </div>
@@ -380,7 +380,7 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
                   {item.status === "pending" && (
                     <button
                       onClick={() => removeFromQueue(idx)}
-                      className="rounded-md p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
+                      className="rounded-md p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors flex-shrink-0"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -397,10 +397,7 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
                 className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-[13px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors"
               >
                 {uploading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Uploading…
-                  </>
+                  <><Loader2 className="h-4 w-4 animate-spin" />Processing…</>
                 ) : (
                   <>
                     <Upload className="h-4 w-4" />
@@ -435,9 +432,9 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
                   onDelete={() => deleteMedia(item.id)}
                   onShare={
                     canonicalPropertyId && item.workspaceId === currentWorkspaceId
-                        ? () => shareMedia(item.id)
-                        : undefined
-                    }
+                      ? () => shareMedia(item.id)
+                      : undefined
+                  }
                 />
               ))}
             </div>
@@ -501,17 +498,11 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
 
       {/* Toast */}
       {toast && (
-        <div
-          className={[
-            "fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-[13px] font-medium text-white shadow-lg transition-all",
-            toast.ok ? "bg-emerald-600" : "bg-red-500",
-          ].join(" ")}
-        >
-          {toast.ok ? (
-            <CheckCircle2 className="h-4 w-4" />
-          ) : (
-            <AlertCircle className="h-4 w-4" />
-          )}
+        <div className={[
+          "fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-[13px] font-medium text-white shadow-lg",
+          toast.ok ? "bg-emerald-600" : "bg-red-500",
+        ].join(" ")}>
+          {toast.ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
           {toast.msg}
         </div>
       )}
@@ -522,15 +513,12 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
 /* ─── Media Tile ─────────────────────────────────────────── */
 
 function MediaTile({
-  item,
-  onView,
-  onDelete,
-  onShare,
+  item, onView, onDelete, onShare,
 }: {
-  item: MediaItem;
-  onView: () => void;
-  onDelete: () => void;
-  onShare?: () => void;
+  item:      MediaItem;
+  onView:    () => void;
+  onDelete:  () => void;
+  onShare?:  () => void;
 }) {
   const [hover, setHover] = useState(false);
 
@@ -553,18 +541,17 @@ function MediaTile({
         </div>
       )}
 
-      {/* overlay on hover */}
       {hover && (
         <div className="absolute inset-0 flex flex-col items-end justify-between bg-black/40 p-1.5">
           <div className="flex gap-1">
             {onShare && (
-                <button
-                    onClick={(e) => { e.stopPropagation(); onShare(); }}
-                    className="rounded-lg bg-white/20 p-1.5 text-white hover:bg-white/30 transition-colors"
-                    title={item.isShared ? "Make private" : "Share to community"}
-                >
-                    <Share2 className="h-3 w-3" />
-                </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onShare(); }}
+                className="rounded-lg bg-white/20 p-1.5 text-white hover:bg-white/30 transition-colors"
+                title={item.isShared ? "Make private" : "Share to community"}
+              >
+                <Share2 className="h-3 w-3" />
+              </button>
             )}
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
@@ -580,7 +567,6 @@ function MediaTile({
         </div>
       )}
 
-      {/* badges */}
       <div className="absolute left-1.5 top-1.5 flex flex-col gap-1">
         {item.isShared && (
           <span className="rounded-md bg-emerald-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
@@ -589,7 +575,7 @@ function MediaTile({
         )}
         {item.isCompressed && (
           <span className="rounded-md bg-slate-700/70 px-1.5 py-0.5 text-[9px] font-bold text-white">
-            COMPRESSED
+            WEBP
           </span>
         )}
       </div>
