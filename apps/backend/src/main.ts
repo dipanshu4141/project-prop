@@ -46,7 +46,9 @@ import { AppModule } from './app.module';
 
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // const app = await NestFactory.create(AppModule);
+
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   /* ── Cookie parser — must come before any guard that reads cookies ── */
   app.use(cookieParser());

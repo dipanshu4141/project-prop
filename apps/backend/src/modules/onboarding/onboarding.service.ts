@@ -110,7 +110,7 @@ export class OnboardingService {
 
     const { workspaceId } = membership;
 
-    const VALID_PLANS = ['FREE', 'INDIVIDUAL', 'FIRM_5', 'FIRM_20', 'ENTERPRISE'];
+    const VALID_PLANS = ['INDIVIDUAL']
     if (!VALID_PLANS.includes(plan)) {
       throw new BadRequestException(`Invalid plan. Choose: ${VALID_PLANS.join(', ')}`);
     }
@@ -122,8 +122,9 @@ export class OnboardingService {
     });
 
     // Create or update subscription record
-    const trialEndsAt = new Date();
-    trialEndsAt.setDate(trialEndsAt.getDate() + 14); // 14-day trial
+   const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 7); // 7-day trial
+
 
     await this.prisma.subscription.upsert({
       where:  { workspaceId },
