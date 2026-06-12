@@ -97,9 +97,14 @@ export async function serverPost<T = unknown>(
     }
   }
 
+  // In serverGet, change the !res.ok block:
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`serverPost ${method} ${path} failed: ${res.status} ${res.statusText} — ${body}`);
+    if (res.status === 403) {
+      // Parse code — redirect handled by middleware or client
+      throw new Error(`SUBSCRIPTION_REQUIRED`);
+    }
+    throw new Error(`serverGet ${path} failed: ${res.status} ${res.statusText} — ${body}`);
   }
 
   const text = await res.text();

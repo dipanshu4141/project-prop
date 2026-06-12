@@ -36,6 +36,7 @@ const NAV_ITEMS = [
   { href: "/v2/deals",       label: "Pipeline",   icon: Handshake       },
   { href: "/v2/collections", label: "Saved",      icon: Bookmark        },
   { href: "/v2/groups",      label: "Import",     icon: Radio           },
+  { href: "/v2/subscription",label: "Subscription", icon: CreditCard  },
 ];
 
 const MOBILE_NAV_ITEMS = [
@@ -59,6 +60,8 @@ const PROFILE_MENU_ITEMS = [
   { href: "/v2/collections", label: "Saved",    icon: Bookmark  },
   { href: "/v2/groups",      label: "Import",   icon: Radio     },
   { href: "/v2/deals",       label: "Pipeline", icon: Handshake },
+  { href: "/v2/subscription",label: "Subscription", icon: CreditCard  },
+
   // { href: "/v2/agents",      label: "Team",     icon: Users2    },
 ];
 

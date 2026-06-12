@@ -19,6 +19,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtPayload } from './jwt-payload.interface';
 
 import { AuthGuard } from '@nestjs/passport';
+import { SkipBilling } from '../modules/billing/skip-billing.decorator';
 
 const IS_PROD = process.env.NODE_ENV === 'production';
 
@@ -51,6 +52,7 @@ function setCookies(res: Response, accessToken: string, refreshToken: string) {
   res.cookie('refresh_token', refreshToken, REFRESH_COOKIE);
 }
 
+@SkipBilling()
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}

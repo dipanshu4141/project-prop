@@ -22,7 +22,7 @@ export function PageContainer({ children, className }: PageContainerProps) {
         Bottom spacer: clears fixed bottom nav (h-16 = 4rem) + breathing room (1.25rem)
         Both are hidden on lg+ where the sidebar is static and there are no fixed bars.
       */}
-      <div className="h-[calc(3.5rem+1.25rem)] lg:hidden" aria-hidden="true" />
+      <div className="h-[calc(0.5rem+0.5rem)] lg:hidden" aria-hidden="true" />
 
       {children}
 

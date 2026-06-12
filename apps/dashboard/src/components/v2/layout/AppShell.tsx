@@ -2,6 +2,7 @@
 
 import { ReactNode, useState, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
+import { TrialBanner } from '@/components/v2/billing/TrialBanner';
 
 const STORAGE_KEY = "sidebar_collapsed";
 
@@ -26,11 +27,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen w-full bg-[#F7F5F0]">
       <Sidebar collapsed={collapsed} onToggle={toggle} />
-      <main
-        className={[
-          "flex-1 min-w-0 overflow-y-auto transition-all duration-300",
-        ].join(" ")}
-      >
+      <main className="flex-1 min-w-0 overflow-y-auto transition-all duration-300 pt-14 lg:pt-0 pb-16 lg:pb-0">
+        <TrialBanner />
         {children}
       </main>
     </div>

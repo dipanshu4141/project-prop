@@ -11,7 +11,7 @@ export async function PATCH(
     const body = await req.json();
 
     const res = await fetch(
-      `${BACKEND_URL}/clients/client-property/${id}/follow-up`,
+      `${BACKEND_URL}/api/clients/client-property/${id}/follow-up`,
       {
         method: "PATCH",
         headers: {

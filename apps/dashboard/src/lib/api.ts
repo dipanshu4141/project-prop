@@ -81,6 +81,28 @@ export async function api<T = any>(
     throw new Error('Session expired');
   }
 
+    // After the 401 block, add:
+    if (res.status === 403) {
+      const errorBody = await res.text().catch(() => '');
+      let code = '';
+      try {
+        const parsed = JSON.parse(errorBody);
+        // NestJS wraps in { message, statusCode } — message may be stringified JSON
+        const inner = typeof parsed.message === 'string'
+          ? JSON.parse(parsed.message)
+          : parsed;
+        code = inner.code ?? '';
+      } catch {}
+      if (
+        (code === 'TRIAL_EXPIRED' || code === 'SUBSCRIPTION_REQUIRED') &&
+        typeof window !== 'undefined' &&
+        !window.location.pathname.startsWith('/v2/subscription')
+      ) {
+        window.location.href = '/v2/subscription';
+        throw new Error('Subscription required');
+      }
+    }
+
   // Other errors — parse and throw
   const errorBody = await res.text().catch(() => '');
   let message = `API error ${res.status}`;

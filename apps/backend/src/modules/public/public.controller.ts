@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { IsIn, IsString, IsNotEmpty } from 'class-validator';
 import { PublicService } from './public.service';
+import { SkipBilling } from '../billing/skip-billing.decorator';
 
 class RespondDto {
   @IsString()
@@ -23,6 +24,8 @@ class RespondDto {
  * Public controller — NO JwtAuthGuard on any route.
  * Token-based ownership validation is handled in PublicService.
  */
+
+@SkipBilling()
 @Controller('public')
 export class PublicController {
   constructor(private readonly publicService: PublicService) {}

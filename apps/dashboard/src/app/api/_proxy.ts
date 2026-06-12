@@ -8,7 +8,8 @@ export async function proxyRequest(
 ): Promise<NextResponse> {
   const url = new URL(req.url);
   const fullUrl = `${BACKEND}${backendPath}${url.search}`;
-  const cookie  = req.headers.get('cookie') ?? '';
+  const cookie = req.headers.get('cookie') ?? '';
+  console.log('proxy cookies:', cookie);
 
   try {
     const res = await fetch(fullUrl, {

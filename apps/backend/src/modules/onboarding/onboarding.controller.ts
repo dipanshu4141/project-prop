@@ -8,6 +8,7 @@ import {
 } from 'class-validator';
 import { JwtAuthGuard } from '../../auth/guards/auth.guards';
 import { OnboardingService } from './onboarding.service';
+import { SkipBilling } from '../billing/skip-billing.decorator';
 
 class CreateWorkspaceDto {
   @IsString() @IsNotEmpty() @MaxLength(80)
@@ -34,6 +35,7 @@ class InviteMembersDto {
   emails: string[];
 }
 
+@SkipBilling()
 @Controller('onboarding')
 @UseGuards(JwtAuthGuard)
 export class OnboardingController {

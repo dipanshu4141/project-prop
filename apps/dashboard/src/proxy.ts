@@ -1,27 +1,24 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-/**
- * Paths that do NOT require authentication.
- * Prefix-matched: /share covers /share/[any-token]
- */
 const PUBLIC_PATHS = [
-  '/', 
+  '/',
   '/login',
   '/register',
-  '/share',           // ← client-facing property sharing portal
-  '/onboarding',      // ← plan selection + team invite after register
+  '/share',
+  '/onboarding',
   '/forgot-password',
   '/reset-password',
   '/invites/accept',
 ];
 
-export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+const BILLING_EXEMPT = [
+  '/v2/subscription',
+  ...PUBLIC_PATHS,
+];
 
-  // Allow all public paths (prefix match)
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
-  if (isPublic) return NextResponse.next();
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
   // Allow Next.js internals
   if (
@@ -32,13 +29,33 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for auth cookie
-const token = request.cookies.get('refresh_token')?.value;
+  // Auth check
+  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  if (isPublic) return NextResponse.next();
 
+  const token = request.cookies.get('refresh_token')?.value;
   if (!token) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Billing check
+  const isExempt = BILLING_EXEMPT.some((p) => pathname.startsWith(p));
+  if (!isExempt) {
+    try {
+      const res = await fetch(`${process.env.BACKEND_URL}/api/billing/status`, {
+        headers: { Cookie: `refresh_token=${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'EXPIRED' || data.status === 'CANCELLED' || data.isExpired) {
+          return NextResponse.redirect(new URL('/v2/subscription', request.url));
+        }
+      }
+    } catch {
+      // fail open
+    }
   }
 
   return NextResponse.next();

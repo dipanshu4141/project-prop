@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
-import Razorpay from 'razorpay';
+import Razorpay = require('razorpay');
 import * as crypto from 'crypto';
 
 const PLAN_AMOUNT = 99900; // ₹999 in paise
@@ -146,15 +146,15 @@ export class BillingService {
     }
 
     // Activate subscription
-    await this.prisma.subscription.update({
-      where: { workspaceId },
-      data: {
-        status:              'ACTIVE',
-        gatewayPaymentId:    data.razorpay_payment_id,
-        currentPeriodStart:  new Date(),
-        currentPeriodEnd:    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
+   await this.prisma.subscription.update({
+    where: { workspaceId },
+    data: {
+        status:             'ACTIVE',
+        currentPeriodStart: new Date(),
+        currentPeriodEnd:   new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    },
     });
+
 
     await this.prisma.workspace.update({
       where: { id: workspaceId },

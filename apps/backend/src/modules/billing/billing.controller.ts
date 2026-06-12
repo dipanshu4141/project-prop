@@ -7,7 +7,9 @@ import { BillingService } from './billing.service';
 import { JwtAuthGuard } from '../../auth/guards/auth.guards';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../../auth/jwt-payload.interface';
+import { SkipBilling } from './skip-billing.decorator';
 
+@SkipBilling()
 @Controller('billing')
 export class BillingController {
   constructor(private readonly svc: BillingService) {}
