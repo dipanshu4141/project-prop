@@ -17,4 +17,4 @@ route.turbo/
 
 apps/backend/wa-sessions/
 
-.turbo/
+.turbo/neon_data.sql
