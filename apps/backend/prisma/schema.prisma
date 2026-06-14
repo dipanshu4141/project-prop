@@ -262,7 +262,7 @@ model User {
   email        String       @unique
   passwordHash String?      // nullable — Google users have no password
   name         String?
-  phone        String?
+  phone        String?      @unique
   avatarUrl    String?
   googleId     String?      @unique
 

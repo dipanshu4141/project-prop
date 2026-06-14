@@ -106,6 +106,18 @@ export class AuthService {
     );
   }
 
+  async updatePhone(userId: string, phone: string): Promise<void> {
+    const existing = await this.prisma.user.findFirst({
+      where: { phone, NOT: { id: userId } },
+    });
+    if (existing) throw new ConflictException('This phone number is already registered');
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data:  { phone },
+    });
+  }
+
   // ─────────────────────────────────────────────────────────────
   // LOGIN
   // ─────────────────────────────────────────────────────────────

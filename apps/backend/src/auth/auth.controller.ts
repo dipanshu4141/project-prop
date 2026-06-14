@@ -139,6 +139,16 @@ export class AuthController {
     return res.json({ user: result.user, workspace: result.workspace });
   }
 
+  @Post('update-phone')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async updatePhone(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { phone: string },
+  ) {
+    return this.authService.updatePhone(user.sub, body.phone);
+  }
+
   @Get('google')
   @UseGuards(AuthGuard('google'))
   googleLogin() {}
@@ -157,6 +167,7 @@ export class AuthController {
       access_token:  result.accessToken,
       refresh_token: result.refreshToken,
       plan_selected: String(result.planSelected ?? false),
+      is_new_user:   String(result.isNewUser ?? false),
     });
 
     res.redirect(`${redirectBase}/api/auth/google/callback?${params.toString()}`);

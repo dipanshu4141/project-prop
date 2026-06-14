@@ -6,6 +6,7 @@ import {
   IsString,
   MinLength,
   MaxLength,
+  Matches,
 } from 'class-validator';
 import { WorkspaceType } from '@prisma/client';
 
@@ -22,17 +23,17 @@ export class RegisterDto {
   @IsNotEmpty()
   name!: string;
 
-  /** Display name for the workspace — firm name or broker's own name */
   @IsString()
   @IsNotEmpty()
   workspaceName!: string;
 
   @IsEnum(WorkspaceType)
-  workspaceType!: WorkspaceType;  // INDIVIDUAL | FIRM
+  workspaceType!: WorkspaceType;
 
   @IsString()
-  @IsOptional()
-  phone?: string;
+  @IsNotEmpty({ message: 'Phone number is required' })
+  @Matches(/^[6-9]\d{9}$/, { message: 'Enter a valid 10-digit Indian mobile number' })
+  phone!: string; // now required, not optional
 }
 
 export class LoginDto {
@@ -45,7 +46,7 @@ export class LoginDto {
 }
 
 export class TokenResponseDto {
-  accessToken!: string;
+  accessToken!:  string;
   refreshToken!: string;
   isNewUser?:    boolean;
   planSelected?: boolean;
@@ -56,12 +57,11 @@ export class TokenResponseDto {
     platformRole: string;
   };
   workspace!: {
-      id:           string;
-      name:         string;
-      slug:         string;
-      type:         string;
-      role:         string;
-      planSelected: boolean;
-    };
-
+    id:           string;
+    name:         string;
+    slug:         string;
+    type:         string;
+    role:         string;
+    planSelected: boolean;
+  };
 }

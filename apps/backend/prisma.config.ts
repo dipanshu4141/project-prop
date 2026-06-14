@@ -1,4 +1,3 @@
-// apps/backend/prisma.config.ts
 import 'dotenv/config';
 import { defineConfig, env } from 'prisma/config';
 
@@ -8,6 +7,7 @@ export default defineConfig({
     seed: 'ts-node --compiler-options {"module":"CommonJS"} prisma/seed.ts',
   },
   datasource: {
-    url: env('DATABASE_URL'),
+    url:             env('DATABASE_URL'),
+    shadowDatabaseUrl: env('MIGRATE_DATABASE_URL'),
   },
 });

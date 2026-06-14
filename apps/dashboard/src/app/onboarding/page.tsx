@@ -1,11 +1,3 @@
-// apps/dashboard/src/app/onboarding/page.tsx
-//
-// Reached two ways:
-//   A) Fresh registration → ?step=plan&type=INDIVIDUAL|FIRM
-//      Workspace already created. Show plan + invite only.
-//   B) Direct visit by logged-in user with no workspace
-//      Show full flow starting at workspace step.
-
 import { redirect } from 'next/navigation';
 import { cookies }  from 'next/headers';
 import { OnboardingFlow } from './OnboardingFlow';
@@ -36,27 +28,21 @@ export default async function OnboardingPage({
 }: {
   searchParams: Promise<Record<string, string>>;
 }) {
-  const params = await searchParams;          // ← Next.js 15: searchParams is a Promise
+  const params = await searchParams;
   const status = await getOnboardingStatus();
 
-  // Not authenticated at all → login
   if (!status) redirect('/login');
 
-  // Coming from register with ?step=plan — workspace exists, skip to plan
-  const startAtPlan   = params.step === 'plan';
-  const workspaceType = (params.type as 'INDIVIDUAL' | 'FIRM') ?? 'INDIVIDUAL';
+  const startAtPlan = params.step === 'plan';
 
-  // Existing user with workspace who visits /onboarding directly
-  // and is NOT coming fresh from register → already done, go to dashboard
   if (status.hasWorkspace && !startAtPlan && status.planSelected) {
     redirect('/v2/dashboard');
   }
 
-
   return (
     <OnboardingFlow
-      initialStep={startAtPlan ? 'plan' : 'workspace'}
-      initialWorkspaceType={workspaceType}
+      initialStep="plan"
+      initialWorkspaceType="INDIVIDUAL"
       workspaceName={status.workspaceName ?? ''}
     />
   );
