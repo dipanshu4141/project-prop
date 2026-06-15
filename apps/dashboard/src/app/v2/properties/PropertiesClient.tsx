@@ -269,6 +269,7 @@ export default function PropertiesClient() {
       datePreset: DATE_PRESETS.includes(rawPreset as DatePreset) ? (rawPreset as DatePreset) : undefined,
       fromDate:   searchParams.get('fromDate') || undefined,
       toDate:     searchParams.get('toDate')   || undefined,
+      source: (searchParams.get('source') as 'all' | 'network' | 'private') || 'all',
     };
   }, [searchParams]);
 
@@ -295,6 +296,7 @@ export default function PropertiesClient() {
       if (next.fromDate) params.set('fromDate', next.fromDate);
       if (next.toDate)   params.set('toDate',   next.toDate);
     }
+    if (next.source && next.source !== 'all') params.set('source', next.source);
     router.push(`?${params.toString()}`);
   }
 

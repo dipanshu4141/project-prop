@@ -532,6 +532,29 @@ export class PropertiesService {
     const tenantRestrictions = parseCsv(query.tenantRestrictions);
     if (tenantRestrictions.length > 0) where.tenantRestrictions = { hasSome: tenantRestrictions };
 
+    // ── Source filter (all / network / private) ──
+    if (query.source === 'private') {
+      where.message = {
+        groupName: {
+          in: await this.prisma.ingestionGroup.findMany({
+            where: { isPrivate: true, workspaceId },
+            select: { groupName: true },
+          }).then(groups => groups.map(g => g.groupName)),
+        },
+      };
+    } else if (query.source === 'network') {
+      const privateGroupNames = await this.prisma.ingestionGroup.findMany({
+        where: { isPrivate: true, workspaceId },
+        select: { groupName: true },
+      }).then(groups => groups.map(g => g.groupName));
+      
+      if (privateGroupNames.length > 0) {
+        where.message = {
+          groupName: { notIn: privateGroupNames },
+        };
+      }
+    }
+
     if (query.status)       where.status       = query.status;
     if (query.availability) where.availability = query.availability;
     if (query.location)     where.location     = { contains: query.location, mode: 'insensitive' };
