@@ -265,6 +265,7 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
   private async handleMessage(msg: proto.IWebMessageInfo, phoneId: string) {
     const groupJid = msg.key?.remoteJid;
     if (!groupJid?.endsWith('@g.us')) return;
+    
 
     const text =
       msg.message?.conversation ||
@@ -273,6 +274,55 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
     if (!text.trim()) return;
 
     const sender = msg.key?.participant || groupJid || '';
+
+    // 0. Check for private group linking code PAI-XXXX
+    const paiMatch = text.trim().match(/^PAI-[A-Z0-9]{4}$/);
+    if (paiMatch) {
+      const code = paiMatch[0];
+      const request = await this.prisma.privateGroupRequest.findUnique({
+        where: { code },
+      });
+      if (request && request.status === 'PENDING' && request.expiresAt > new Date()) {
+        // Try to get group name from socket directly
+        const meta = this.sessions.get(phoneId);
+        let groupName = groupJid;
+        if (meta?.socket) {
+          try {
+            const groupMeta = await meta.socket.groupMetadata(groupJid);
+            groupName = groupMeta.subject ?? groupJid;
+          } catch {}
+        }
+
+        // Also upsert the group into DB with correct name
+        const group = await this.prisma.ingestionGroup.upsert({
+          where: { groupJid_ingestionPhoneId: { groupJid, ingestionPhoneId: phoneId } },
+          create: { 
+            groupJid, 
+            groupName, 
+            ingestionPhoneId: phoneId,
+            isPrivate: true,
+            workspaceId: request.workspaceId,
+            claimExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          },
+          update: { groupName, isPrivate: true, workspaceId: request.workspaceId },
+        });
+
+        await this.prisma.$transaction(async (tx) => {
+          await tx.privateGroupRequest.update({
+            where: { id: request.id },
+            data:  { status: 'LINKED', groupJid, groupName },
+          });
+          await tx.groupSubscription.upsert({
+            where: { groupId_workspaceId: { groupId: group.id, workspaceId: request.workspaceId } },
+            create: { groupId: group.id, workspaceId: request.workspaceId, active: true },
+            update: { active: true },
+          });
+        });
+
+        this.logger.log(`Private group linked: ${groupJid} (${groupName}) → workspace ${request.workspaceId}`);
+      }
+      return;
+    }
 
     // 1. Find active subscriptions for this group
     const subscriptions = await this.prisma.groupSubscription.findMany({
@@ -432,8 +482,13 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
       for (const [jid, meta] of Object.entries(groups)) {
         await this.prisma.ingestionGroup.upsert({
           where: { groupJid_ingestionPhoneId: { groupJid: jid, ingestionPhoneId: phoneId } },
-          create: { groupJid: jid, groupName: meta.subject, ingestionPhoneId: phoneId },
-          update: { groupName: meta.subject },
+          create: { 
+            groupJid: jid, 
+            groupName: meta.subject, 
+            ingestionPhoneId: phoneId,
+            claimExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h grace
+          },
+          update: { groupName: meta.subject }, // don't reset claimExpiresAt on update
         });
       }
       this.logger.log(`syncGroups: synced ${Object.keys(groups).length} groups for ${phoneId}`);
@@ -543,9 +598,24 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
       select: { groupId: true },
     });
     const subscribedIds = subscribed.map((s) => s.groupId);
+    const now = new Date();
 
     return this.prisma.ingestionGroup.findMany({
-      where: { id: { notIn: subscribedIds } },
+      where: {
+        id: { notIn: subscribedIds },
+        OR: [
+          // Public groups — grace period expired or never set
+          { 
+            isPrivate: false,
+            OR: [
+              { claimExpiresAt: null },
+              { claimExpiresAt: { lt: now } }, // grace period over
+            ]
+          },
+          // Own private groups
+          { isPrivate: true, workspaceId },
+        ],
+      },
       include: {
         phone: { select: { phone: true, displayName: true } },
         _count: { select: { subscriptions: { where: { active: true } } } },

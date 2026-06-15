@@ -28,6 +28,7 @@ import { MediaModule } from './modules/media/media.module';
 import { CollectionsModule } from './modules/collections/collections.module';
 import { ShortlistsModule }  from './modules/shortlists/shortlists.module';
 import { IngestionModule } from './modules/ingestion/ingestion.module';
+import { PrivateGroupsModule } from './modules/private-groups/private-groups.module';
 import { BillingGuard } from './modules/billing/billing.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
@@ -61,6 +62,7 @@ import { JwtModule } from '@nestjs/jwt';
     IngestionModule,
     CollectionsModule,
     ShortlistsModule,
+    PrivateGroupsModule,
     JwtModule.register({ secret: process.env.JWT_SECRET }),
   ],
   controllers: [AppController, DealsController, DashboardController],

@@ -239,6 +239,7 @@ model Workspace {
 
   shareTokens       ClientShareToken[]
   groupSubscriptions GroupSubscription[]
+  privateGroupRequests PrivateGroupRequest[]
 
   storageSubscription  WorkspaceStorageSubscription?
   media                Media[]
@@ -1260,6 +1261,9 @@ model IngestionGroup {
   groupJid         String
   groupName        String
   ingestionPhoneId String
+  isPrivate        Boolean        @default(false)
+  workspaceId      String?
+  claimExpiresAt   DateTime?      // grace period — no subscriptions until this passes
   phone            IngestionPhone @relation(fields: [ingestionPhoneId], references: [id])
   subscriptions    GroupSubscription[]
   @@unique([groupJid, ingestionPhoneId])
@@ -1361,4 +1365,21 @@ model ClientShortlistItem {
 
   @@unique([shortlistId, listingId])
   @@index([shortlistId])
+}
+
+model PrivateGroupRequest {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  code        String    @unique
+  groupJid    String?
+  groupName   String?
+  status      String    @default("PENDING") // PENDING | LINKED | EXPIRED
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId])
+  @@index([code])
+  @@index([status])
 }
