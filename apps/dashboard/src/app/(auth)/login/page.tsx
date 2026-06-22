@@ -65,11 +65,11 @@ function LoginForm() {
 
         {/* Logo */}
         <div className="flex items-center gap-2.5 mb-8">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500">
-            <Building2 className="h-4 w-4 text-white" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg overflow-hidden flex-shrink-0">
+            <img src="/icons/icon-512.png" alt="GrowCliento" className="h-full w-full object-cover" />
           </div>
           <span className="text-[17px] font-semibold tracking-tight text-slate-900">
-            Property CRM
+            GrowCliento
           </span>
         </div>
 

@@ -640,7 +640,7 @@ export function SharePortalClient({
         <footer className="py-6 text-center" style={{ borderTop: '1px solid #EDEAE5' }}>
           <p className="text-xs" style={{ color: '#C0BBB2', fontFamily: "'DM Sans', sans-serif" }}>
             Powered by{' '}
-            <span style={{ color: '#0B1F14', fontWeight: 600 }}>PropertyAI</span>
+            <span style={{ color: '#0B1F14', fontWeight: 600 }}>GrowCliento</span>
           </p>
         </footer>
       </div>

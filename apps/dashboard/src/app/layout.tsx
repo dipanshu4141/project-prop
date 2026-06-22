@@ -8,13 +8,13 @@ export const viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'PropertyAI',
+  title: 'GrowCliento Dashboard',
   description: 'AI Powered Real Estate CRM',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'PropertyAI',
+    title: 'GrowCliento',
   },
 };
 

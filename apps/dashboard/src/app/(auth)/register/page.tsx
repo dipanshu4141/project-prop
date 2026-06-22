@@ -390,7 +390,7 @@ function InviteCodeGate({ onValid }: { onValid: () => void }) {
       </div>
       <h1 className="text-[20px] font-bold text-slate-900 mb-1 text-center">Early access only</h1>
       <p className="text-[13px] text-slate-500 mb-6 text-center">
-        PropertyAI is invite-only right now. Enter your code to continue.
+        GrowCliento is invite-only right now. Enter your code to continue.
       </p>
       {error && (
         <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-[13px] text-red-700">
@@ -604,10 +604,10 @@ function RegisterPageInner() {
     <div className="min-h-screen bg-[#F7F5F0] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-[440px]">
         <div className="flex items-center gap-2.5 mb-8">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500">
-            <Building2 className="h-4 w-4 text-white" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg overflow-hidden flex-shrink-0">
+            <img src="/icons/icon-512.png" alt="GrowCliento" className="h-full w-full object-cover" />
           </div>
-          <span className="text-[17px] font-semibold tracking-tight text-slate-900">PropertyAI</span>
+          <span className="text-[17px] font-semibold tracking-tight text-slate-900">GrowCliento</span>
         </div>
         <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-8">
           {inviteToken

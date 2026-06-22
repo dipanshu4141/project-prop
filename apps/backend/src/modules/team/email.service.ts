@@ -7,7 +7,7 @@
 //   1. npm install resend          (in apps/backend)
 //   2. Add to backend .env:
 //        RESEND_API_KEY=re_xxxxxxxxxxxx
-//        EMAIL_FROM=PropertyAI <noreply@yourdomain.com>
+//        EMAIL_FROM=GrowCliento <noreply@yourdomain.com>
 //        FRONTEND_URL=http://localhost:3001   (already exists)
 //   3. In Resend dashboard: verify your sending domain.
 //      During dev you can use onboarding@resend.dev as FROM
@@ -20,7 +20,7 @@ import { Resend } from 'resend';
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly resend = new Resend(process.env.RESEND_API_KEY);
-  private readonly from   = process.env.EMAIL_FROM ?? 'PropertyAI <onboarding@resend.dev>';
+  private readonly from   = process.env.EMAIL_FROM ?? 'GrowCliento <onboarding@resend.dev>';
 
   /* ================================================================
    * WORKSPACE INVITE
@@ -34,7 +34,7 @@ export class EmailService {
     role:          string;
     inviteUrl:     string;
   }) {
-    const subject = `${opts.invitedBy} invited you to join ${opts.workspaceName} on PropertyAI`;
+    const subject = `${opts.invitedBy} invited you to join ${opts.workspaceName} on GrowCliento`;
 
     const html = this.inviteHtml(opts);
 
@@ -75,7 +75,7 @@ export class EmailService {
     workspaceName: string;
     dashboardUrl:  string;
   }) {
-    const subject = `Welcome to ${opts.workspaceName} on PropertyAI`;
+    const subject = `Welcome to ${opts.workspaceName} on GrowCliento`;
 
     const html = this.welcomeHtml(opts);
 
@@ -115,7 +115,7 @@ export class EmailService {
   <div style="max-width:520px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
 
     <div style="background:#0B1F14;padding:28px 32px;">
-      <span style="color:white;font-size:18px;font-weight:700;letter-spacing:-0.3px;">PropertyAI</span>
+      <span style="color:white;font-size:18px;font-weight:700;letter-spacing:-0.3px;">GrowCliento</span>
     </div>
 
     <div style="padding:36px 32px;">
@@ -139,7 +139,7 @@ export class EmailService {
 
     <div style="padding:18px 32px;border-top:1px solid #f1f5f9;background:#fafafa;">
       <p style="margin:0;font-size:11px;color:#cbd5e1;text-align:center;">
-        PropertyAI · Real estate CRM for Indian brokers
+        GrowCliento · Real estate CRM for Indian brokers
       </p>
     </div>
   </div>
@@ -157,13 +157,13 @@ export class EmailService {
   <div style="max-width:520px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
 
     <div style="background:#0B1F14;padding:28px 32px;">
-      <span style="color:white;font-size:18px;font-weight:700;letter-spacing:-0.3px;">PropertyAI</span>
+      <span style="color:white;font-size:18px;font-weight:700;letter-spacing:-0.3px;">GrowCliento</span>
     </div>
 
     <div style="padding:36px 32px;">
       <h1 style="margin:0 0 8px;font-size:22px;color:#0f172a;font-weight:700;">Welcome, ${firstName}! 🎉</h1>
       <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.65;">
-        You've joined <strong style="color:#0f172a;">${opts.workspaceName}</strong> on PropertyAI.
+        You've joined <strong style="color:#0f172a;">${opts.workspaceName}</strong> on GrowCliento.
         Your dashboard is ready — start adding clients and listings.
       </p>
 
@@ -176,7 +176,7 @@ export class EmailService {
 
     <div style="padding:18px 32px;border-top:1px solid #f1f5f9;background:#fafafa;">
       <p style="margin:0;font-size:11px;color:#cbd5e1;text-align:center;">
-        PropertyAI · Real estate CRM for Indian brokers
+        GrowCliento · Real estate CRM for Indian brokers
       </p>
     </div>
   </div>

@@ -66,7 +66,7 @@ function AcceptInviteForm() {
             <Building2 className="h-4 w-4 text-white" />
           </div>
           <span className="text-[17px] font-semibold tracking-tight text-slate-900">
-            Property CRM
+            GrowCliento
           </span>
         </div>
 

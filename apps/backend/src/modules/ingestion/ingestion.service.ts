@@ -83,7 +83,7 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
     auth: state,
     printQRInTerminal: false,
     logger: P({ level: 'silent' }),
-    browser: ['PropertyAI', 'Chrome', '120.0.0'],
+    browser: ['GrowCliento', 'Chrome', '120.0.0'],
     });
 
     // In startSession(), where session is set:

@@ -466,7 +466,7 @@ export default function HomePage() {
             <div className="lp-logo-mark">
               <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             </div>
-            <span className="lp-logo-text">PropertyAI</span>
+            <span className="lp-logo-text">GrowCliento</span>
           </a>
           <div className="lp-nav-actions">
             <Link href="/login" className="lp-btn-ghost">Sign in</Link>
@@ -491,7 +491,7 @@ export default function HomePage() {
             </h1>
 
             <p className="lp-sub">
-              PropertyAI ingests your WhatsApp group listings automatically, deduplicates properties, and gives every broker in your firm a shared CRM — without the chaos.
+              GrowCliento ingests your WhatsApp group listings automatically, deduplicates properties, and gives every broker in your firm a shared CRM — without the chaos.
             </p>
 
             <div className="lp-hero-btns">
@@ -539,7 +539,7 @@ export default function HomePage() {
             </div>
             <div className="lp-dash">
               <div className="lp-dash-sidebar">
-                <div className="lp-dash-logo">PropertyAI</div>
+                <div className="lp-dash-logo">GrowCliento</div>
                 {[
                   { icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z', label: 'Dashboard', active: false },
                   { icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', label: 'Properties', active: true },
@@ -612,7 +612,7 @@ export default function HomePage() {
               {
                 icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
                 name: 'WhatsApp Auto-Ingestion',
-                desc: 'Connect your WhatsApp groups. PropertyAI reads every listing message and adds it to your CRM automatically — no manual entry.',
+                desc: 'Connect your WhatsApp groups. GrowCliento reads every listing message and adds it to your CRM automatically — no manual entry.',
               },
               {
                 icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
@@ -662,7 +662,7 @@ export default function HomePage() {
                 <em>already in your WhatsApp.</em>
               </h2>
               <p className="lp-cta-p">
-                Stop losing listings in group chats. Connect PropertyAI and let the CRM build itself.
+                Stop losing listings in group chats. Connect GrowCliento and let the CRM build itself.
               </p>
               <div className="lp-cta-btns">
                 <Link href="/register" className="lp-cta-btn-white">
@@ -680,7 +680,7 @@ export default function HomePage() {
         {/* FOOTER */}
         <footer className="lp-footer">
           <div className="lp-footer-copy">
-            © 2026 PropertyAI · Built for Indian real estate brokers
+            © 2026 GrowCliento · Built for Indian real estate brokers
           </div>
           <div className="lp-footer-links">
             <Link href="/login">Sign in</Link>

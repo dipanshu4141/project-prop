@@ -65,7 +65,7 @@ function PlanStep({ onNext }: { onNext: () => void }) {
       <div className="rounded-2xl border-2 p-5" style={{ borderColor: '#0B1F14', background: '#F7F5F0' }}>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="font-bold text-[15px]" style={{ color: '#0B1F14' }}>PropertyAI Pro</p>
+            <p className="font-bold text-[15px]" style={{ color: '#0B1F14' }}>GrowCliento Pro</p>
             <p className="text-[12px] text-gray-400 mt-0.5">Individual broker</p>
           </div>
           <div className="text-right">
@@ -80,7 +80,6 @@ function PlanStep({ onNext }: { onNext: () => void }) {
             'Client management & sharing',
             'Property media uploads',
             'Deal pipeline tracking',
-            'Team collaboration',
             'Priority support',
           ].map((f) => (
             <div key={f} className="flex items-center gap-2 text-[12.5px] text-gray-600">
@@ -125,7 +124,7 @@ export function OnboardingFlow({
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: '#0B1F14' }}>
             <Building2 className="h-5 w-5 text-white" />
           </div>
-          <span className="text-lg font-bold" style={{ color: '#0B1F14' }}>PropertyAI</span>
+          <span className="text-lg font-bold" style={{ color: '#0B1F14' }}>GrowCliento</span>
         </div>
 
         {/* Card */}
@@ -137,8 +136,8 @@ export function OnboardingFlow({
         {step !== 'done' && (
           <p className="text-center text-xs text-gray-400 mt-6">
             Need help?{' '}
-            <a href="mailto:support@propertyai.in" className="underline hover:text-gray-600">
-              support@propertyai.in
+            <a href="mailto:hello@growcliento.com" className="underline hover:text-gray-600">
+              hello@growcliento.com
             </a>
           </p>
         )}

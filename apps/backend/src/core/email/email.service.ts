@@ -13,7 +13,7 @@ export class EmailService {
     await this.resend.emails.send({
       from:    this.from,
       to:      email,
-      subject: 'Verify your PropertyAI email',
+      subject: 'Verify your GrowCliento email',
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
           <h2 style="color:#0B1F14;margin-bottom:8px">Verify your email</h2>
@@ -37,7 +37,7 @@ export class EmailService {
     await this.resend.emails.send({
       from:    this.from,
       to:      email,
-      subject: 'Reset your PropertyAI password',
+      subject: 'Reset your GrowCliento password',
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
           <h2 style="color:#0B1F14;margin-bottom:8px">Reset your password</h2>

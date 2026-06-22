@@ -114,7 +114,7 @@ export class BillingService {
       keyId:          process.env.RAZORPAY_KEY_ID,
       amount:         PLAN_AMOUNT,
       currency:       'INR',
-      name:           'PropertyAI Pro',
+      name:           'GrowCliento Pro',
       description:    '₹999/month — WhatsApp property management',
       prefill: {
         name:  user.name  ?? '',

@@ -232,12 +232,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
         {/* Logo + toggle */}
         <div className="h-16 flex items-center border-b border-white/10 flex-shrink-0 px-3 gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500 flex-shrink-0">
-            <Building2 className="h-4 w-4 text-white" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg overflow-hidden flex-shrink-0">
+            <img src="/icons/icon-512.png" alt="GrowCliento" className="h-full w-full object-cover" />
           </div>
           {!collapsed && (
             <span className="flex-1 text-[15px] font-semibold tracking-tight text-white truncate">
-              Property CRM
+              GrowCliento
             </span>
           )}
           <button
@@ -322,11 +322,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* ── MOBILE TOP BAR ── */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex h-14 items-center gap-2.5 border-b border-white/10 bg-[#0B1F14] px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500 flex-shrink-0">
-          <Building2 className="h-4 w-4 text-white" />
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg overflow-hidden flex-shrink-0">
+          <img src="/icons/icon-512.png" alt="GrowCliento" className="h-full w-full object-cover" />
         </div>
         <span className="text-[15px] font-semibold tracking-tight text-white">
-          Property CRM
+          GrowCliento
         </span>
         <div className="ml-auto">
           <MobileProfileMenu />

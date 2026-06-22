@@ -64,7 +64,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { token } = await params;      // ← await it
   const data = await fetchShareData(token);
-  if (!data) return { title: 'Properties | PropertyAI' };
+  if (!data) return { title: 'Properties | GrowCliento' };
   return {
     title: `Properties for ${data.clientName} | ${data.workspaceName}`,
     description: `${data.properties.length} properties selected for you by ${data.workspaceName}`,

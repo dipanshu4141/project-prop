@@ -43,7 +43,6 @@ const FEATURES = [
   'Client management & sharing',
   'Property media uploads',
   'Deal pipeline tracking',
-  'Team collaboration',
   'Priority support',
 ];
 
@@ -96,7 +95,7 @@ export default function SubscriptionPage() {
       const rzp = new window.Razorpay({
         key:             data.keyId,
         subscription_id: data.subscriptionId,
-        name:            'PropertyAI',
+        name:            'GrowCliento',
         description:     data.description,
         image:           '/logo.png',
         prefill:         data.prefill,
@@ -116,7 +115,7 @@ export default function SubscriptionPage() {
             });
             if (!verifyRes.ok) throw new Error('Payment verification failed');
 
-            showToast('🎉 Subscription activated! Welcome to PropertyAI Pro.');
+            showToast('🎉 Subscription activated! Welcome to GrowCliento Pro.');
             // Refresh status
             const statusRes = await fetch('/api/billing/status', { credentials: 'include' });
             setStatus(await statusRes.json());
@@ -173,7 +172,7 @@ export default function SubscriptionPage() {
         {/* Header */}
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-[#0B1F14]">Subscription</h1>
-          <p className="mt-1 text-[13px] text-slate-500">Manage your PropertyAI plan</p>
+          <p className="mt-1 text-[13px] text-slate-500">Manage your GrowCliento plan</p>
         </div>
 
         {/* Status card */}
@@ -232,7 +231,7 @@ export default function SubscriptionPage() {
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-emerald-600" />
                 <p className="text-[13px] font-bold text-slate-800 uppercase tracking-wide">
-                  PropertyAI Pro
+                  GrowCliento Pro
                 </p>
               </div>
               <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">

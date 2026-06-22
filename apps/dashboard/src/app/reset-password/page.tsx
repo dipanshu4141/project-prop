@@ -36,7 +36,7 @@ function ResetPasswordInner() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500">
             <Building2 className="h-4 w-4 text-white" />
           </div>
-          <span className="text-[17px] font-semibold tracking-tight text-slate-900">PropertyAI</span>
+          <span className="text-[17px] font-semibold tracking-tight text-slate-900">GrowCliento</span>
         </div>
         <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-8">
           {done ? (
