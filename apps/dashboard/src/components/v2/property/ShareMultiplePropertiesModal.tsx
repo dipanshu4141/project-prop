@@ -533,74 +533,88 @@ export function ShareMultiplePropertiesModal({
     clientName, clientPhone, shareUrl, linkLoading, resolving,
   ]);
 
-    // ── Share handler ──
-  async function share() {
-    if (!clientPhone || resolvedProperties.length === 0) return;
-    const phone = clientPhone.replace(/\D/g, '');
-    if (!phone) return;
+function isIOS(): boolean {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+}
 
-    setLoading(true);
+function isAndroid(): boolean {
+  return /Android/.test(navigator.userAgent);
+}
 
-    // Open a blank window IMMEDIATELY (synchronously) to preserve iOS user-gesture trust
-    const waWindow = window.open('', '_blank');
+// ── Share handler ──
+async function share() {
+  if (!clientPhone || resolvedProperties.length === 0) return;
+  const phone = clientPhone.replace(/\D/g, '');
+  if (!phone) return;
 
-    try {
-      let finalUrl = shareUrl;
-      if (!finalUrl && isValidPhone(clientPhone)) {
-        try {
-          const data = await apiPost<ShareTokenResponse>(
-            '/clients/share-token-by-phone',
-            { phone, name: clientName.trim() || undefined },
-          );
-          finalUrl = data.url;
-          setShareUrl(data.url);
-          setLinkClientId(data.clientId);
-        } catch {
-          // non-fatal
-        }
+  setLoading(true);
+
+  const onIOS = isIOS();
+
+  // Only iOS needs the blank-window trick to preserve user-gesture trust
+  const waWindow = onIOS ? window.open('', '_blank') : null;
+
+  try {
+    let finalUrl = shareUrl;
+    if (!finalUrl && isValidPhone(clientPhone)) {
+      try {
+        const data = await apiPost<ShareTokenResponse>(
+          '/clients/share-token-by-phone',
+          { phone, name: clientName.trim() || undefined },
+        );
+        finalUrl = data.url;
+        setShareUrl(data.url);
+        setLinkClientId(data.clientId);
+      } catch {
+        // non-fatal
       }
+    }
 
-      const senders: MessageSender[] =
-        selectedTeam.length > 0 ? selectedTeam : selfEntry ? [selfEntry] : [];
-      const message = buildWhatsAppMessageForMultiple(
-        resolvedProperties as MessageProperty[],
-        senders,
-        clientName,
-        finalUrl,
-      );
+    const senders: MessageSender[] =
+      selectedTeam.length > 0 ? selectedTeam : selfEntry ? [selfEntry] : [];
+    const message = buildWhatsAppMessageForMultiple(
+      resolvedProperties as MessageProperty[],
+      senders,
+      clientName,
+      finalUrl,
+    );
 
-      await Promise.all(
-        resolvedProperties.map((p) =>
-          apiPost(`/properties/${p.id}/share`, {
-            clientName,
-            clientPhone: phone,
-            clientId: linkClientId,
-            teamMemberIds: selectedTeamIds,
-            platform: 'WHATSAPP',
-          }).catch(() => null),
-        ),
-      );
+    await Promise.all(
+      resolvedProperties.map((p) =>
+        apiPost(`/properties/${p.id}/share`, {
+          clientName,
+          clientPhone: phone,
+          clientId: linkClientId,
+          teamMemberIds: selectedTeamIds,
+          platform: 'WHATSAPP',
+        }).catch(() => null),
+      ),
+    );
 
-      // Redirect the already-open window now that we have the final message
-      const params = new URLSearchParams();
-      params.set('phone', `91${phone}`);
-      params.set('text', message);
-      const url = `https://api.whatsapp.com/send/?${params.toString()}`;
+    const params = new URLSearchParams();
+    params.set('phone', `91${phone}`);
+    params.set('text', message);
+    const url = `https://api.whatsapp.com/send/?${params.toString()}`;
 
+    if (onIOS) {
+      // iOS: redirect the pre-opened blank tab
       if (waWindow) {
         waWindow.location.href = url;
       } else {
-        // Popup was blocked anyway — fallback
         window.location.href = url;
       }
-    } catch (err) {
-      console.error('Share failed:', err);
-      waWindow?.close();
-    } finally {
-      setLoading(false);
-      onClose();
+    } else {
+      // Android/desktop: direct navigation triggers the WhatsApp app intent properly
+      window.location.href = url;
     }
+  } catch (err) {
+    console.error('Share failed:', err);
+    waWindow?.close();
+  } finally {
+    setLoading(false);
+    onClose();
   }
+}
 
   const canShare = !loading && !resolving && isValidPhone(clientPhone);
 
