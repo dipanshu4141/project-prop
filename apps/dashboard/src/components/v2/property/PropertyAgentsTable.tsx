@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Phone, Trash2, Pencil, UserCircle2 } from "lucide-react";
+import { Phone, Trash2, Pencil, UserCircle2, MessageCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { apiDel } from "@/lib/api";
 import { EditAgentModal } from "@/components/v2/agents/EditAgentModal";
@@ -25,6 +25,7 @@ type Props = {
   agents:      Agent[] | null | undefined;
   confidence:  number;
   editable?:   boolean;
+  property?:   any;
 };
 
 /* ------------------------------------------------------------------ */
@@ -33,7 +34,6 @@ type Props = {
 
 function getPhoneStrings(agent: Agent): string[] {
   if (!Array.isArray(agent.phones) || agent.phones.length === 0) return [];
-  // phones can be AgentPhone[] or string[]
   return agent.phones.map((p) =>
     typeof p === "string" ? p : (p as AgentPhone).phone
   );
@@ -42,6 +42,19 @@ function getPhoneStrings(agent: Agent): string[] {
 function initials(name?: string | null) {
   if (!name) return "?";
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+}
+
+function normalizePhoneForLink(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 10) return `91${digits}`;
+  return digits;
+}
+
+function buildWhatsAppPrefill(property: any): string {
+  if (!property) return "Hi, is this property still available?";
+  const title = [property.bhk, property.propertySubType].filter(Boolean).join(" ") || "your property";
+  const location = property.area || property.city || property.location || "";
+  return `Hi, I'm interested in the ${title}${location ? ` in ${location}` : ""} (${property.refCode ?? ""}). Is it still available?`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -54,6 +67,7 @@ export function PropertyAgentsTable({
   agents,
   confidence,
   editable = false,
+  property,
 }: Props) {
   const router = useRouter();
   const safeAgents: Agent[] = Array.isArray(agents) ? agents : [];
@@ -61,12 +75,12 @@ export function PropertyAgentsTable({
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
 
   async function removeAgent(agentId: string) {
-    if (!confirm("Remove this agent from the property?")) return;
+    if (!confirm("Remove this realtor from the property?")) return;
     try {
       await apiDel(`/properties/${propertyId}/agents/${agentId}`);
       router.refresh();
     } catch {
-      alert("Failed to remove agent.");
+      alert("Failed to remove realtor.");
     }
   }
 
@@ -74,9 +88,9 @@ export function PropertyAgentsTable({
     return (
       <div className="flex flex-col items-center justify-center py-6 text-center">
         <UserCircle2 className="h-8 w-8 text-slate-300 mb-2" />
-        <p className="text-[12.5px] font-medium text-slate-600">No agents attached</p>
+        <p className="text-[12.5px] font-medium text-slate-600">No realtors attached</p>
         <p className="text-[11.5px] text-slate-400 mt-0.5">
-          {editable ? "Use the button above to attach an agent by phone." : "No agent info available."}
+          {editable ? "Use the button above to attach a realtor by phone." : "No realtor info available."}
         </p>
       </div>
     );
@@ -87,6 +101,7 @@ export function PropertyAgentsTable({
       <div className="space-y-2">
         {safeAgents.map((agent) => {
           const phones = getPhoneStrings(agent);
+          const waMessage = buildWhatsAppPrefill(property);
 
           return (
             <div
@@ -102,43 +117,52 @@ export function PropertyAgentsTable({
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <p className="text-[13.5px] font-semibold text-slate-800">
-                    {agent.name ?? "Unnamed agent"}
+                    {agent.name ?? "Unnamed realtor"}
                   </p>
                   {agent.firmName && (
                     <p className="text-[11.5px] text-slate-400">{agent.firmName}</p>
                   )}
 
-                  {/* Phone numbers */}
+                  {/* Phone numbers — each with Call + WhatsApp */}
                   {phones.length > 0 && (
-                    <div className="mt-1.5 flex flex-wrap gap-2">
+                    <div className="mt-1.5 space-y-1.5">
                       {phones.map((phone) => (
-                        <a
-                          key={phone}
-                          href={`tel:${phone}`}
-                          className="flex items-center gap-1 text-[11.5px] text-emerald-700 hover:underline"
-                        >
-                          <Phone className="h-3 w-3" />
-                          {phone}
-                        </a>
+                        <div key={phone} className="flex items-center gap-2">
+                          <span className="text-[11.5px] text-slate-600 font-medium">{phone}</span>
+                          <a
+                            href={`tel:${phone}`}
+                            className="flex items-center gap-1 h-6 px-2 rounded-md border border-slate-200 bg-white text-[10.5px] font-medium text-slate-500 hover:border-emerald-300 hover:text-emerald-700 transition-all"
+                          >
+                            <Phone className="h-2.5 w-2.5" />
+                            Call
+                          </a>
+                          <a
+                            href={`https://api.whatsapp.com/send/?phone=${normalizePhoneForLink(phone)}&text=${encodeURIComponent(waMessage)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 h-6 px-2 rounded-md bg-[#25D366] text-[10.5px] font-medium text-white hover:bg-[#1fb855] transition-all"
+                          >
+                            <MessageCircle className="h-2.5 w-2.5" />
+                            
+                          </a>
+                        </div>
                       ))}
                     </div>
                   )}
                 </div>
 
-                {/* Actions */}
+                {/* Edit/Remove actions */}
                 {editable && (
                   <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {/* Edit */}
                     <button
                       onClick={() => setEditingAgent(agent)}
                       className="flex items-center gap-1 h-7 px-2.5 rounded-lg border border-slate-200 bg-white text-[11.5px] font-medium text-slate-500 hover:border-sky-300 hover:text-sky-700 transition-all"
-                      title="Edit agent"
+                      title="Edit realtor"
                     >
                       <Pencil className="h-3 w-3" />
                       Edit
                     </button>
 
-                    {/* Remove */}
                     <button
                       onClick={() => removeAgent(agent.id)}
                       className="flex items-center gap-1 h-7 px-2.5 rounded-lg border border-slate-200 bg-white text-[11.5px] font-medium text-slate-400 hover:border-red-300 hover:text-red-600 transition-all"
@@ -147,17 +171,6 @@ export function PropertyAgentsTable({
                       <Trash2 className="h-3 w-3" />
                     </button>
                   </div>
-                )}
-
-                {/* Non-editable: call button only */}
-                {!editable && phones.length > 0 && (
-                  <a
-                    href={`tel:${phones[0]}`}
-                    className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-slate-200 bg-white text-[11.5px] font-medium text-slate-500 hover:border-emerald-300 hover:text-emerald-700 transition-all flex-shrink-0"
-                  >
-                    <Phone className="h-3 w-3" />
-                    Call
-                  </a>
                 )}
               </div>
             </div>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ImageIcon, VideoIcon, Upload, X, Loader2,
-  Share2, Trash2, ZoomIn, CheckCircle2, AlertCircle,
+  Share2, Trash2, ZoomIn, CheckCircle2, AlertCircle, Check, EyeOff,
 } from "lucide-react";
 import imageCompression from "browser-image-compression";
 import { useAuth } from "@/context/AuthContext";
@@ -86,6 +86,11 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
   const { workspace } = useAuth();
   const currentWorkspaceId = workspace?.id;
 
+  /* ── Selection mode state ── */
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds,   setSelectedIds]   = useState<Set<string>>(new Set());
+  const [bulkLoading,   setBulkLoading]   = useState(false);
+
   /* fetch existing media */
   useEffect(() => {
     fetch(`/api/media/listing/${listingId}`, { credentials: "include" })
@@ -149,7 +154,6 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
       const item = queue[i];
       if (item.status !== "pending") continue;
 
-      // ── Compress ──
       setQueue((q) => q.map((it, idx) => idx === i ? { ...it, status: "compressing" } : it));
       const fileToUpload = await compressIfImage(item.file, item.compressed);
       const mimeType  = fileToUpload.type;
@@ -161,7 +165,6 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
       ));
 
       try {
-        // Step 1 — presign
         const presignRes = await fetch("/api/media/presign", {
           method:      "POST",
           headers:     { "Content-Type": "application/json" },
@@ -180,7 +183,6 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
         }
         const { presignedUrl, r2Key } = await presignRes.json();
 
-        // Step 2 — PUT compressed file to R2
         const putRes = await fetch(presignedUrl, {
           method:  "PUT",
           headers: { "Content-Type": mimeType },
@@ -188,7 +190,6 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
         });
         if (!putRes.ok) throw new Error("Upload to storage failed");
 
-        // Step 3 — confirm
         const confirmRes = await fetch("/api/media/confirm", {
           method:      "POST",
           headers:     { "Content-Type": "application/json" },
@@ -221,7 +222,7 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
     setUploading(false);
   };
 
-  /* delete */
+  /* single delete */
   const deleteMedia = async (mediaId: string) => {
     try {
       const res = await fetch(`/api/media/${mediaId}`, {
@@ -236,7 +237,7 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
     }
   };
 
-  /* share to community */
+  /* single share toggle */
   const shareMedia = async (mediaId: string) => {
     if (!canonicalPropertyId) return;
     try {
@@ -254,6 +255,62 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
       showToast("Share failed", false);
     }
   };
+
+  /* ── Bulk actions ── */
+  function toggleSelect(id: string) {
+    const item = media.find((m) => m.id === id);
+    if (!item || item.source !== "BROKER_UPLOAD" || item.workspaceId !== currentWorkspaceId) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function exitSelectionMode() {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }
+
+  async function bulkDelete() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} item${selectedIds.size > 1 ? "s" : ""}? This can't be undone.`)) return;
+    setBulkLoading(true);
+    const ids = [...selectedIds];
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/media/${id}`, { method: "DELETE", credentials: "include" }).catch(() => null)
+      ),
+    );
+    setMedia((m) => m.filter((it) => !selectedIds.has(it.id)));
+    showToast(`Deleted ${ids.length} item${ids.length > 1 ? "s" : ""}`);
+    setBulkLoading(false);
+    exitSelectionMode();
+  }
+
+  async function bulkSetShared(shared: boolean) {
+    if (selectedIds.size === 0 || !canonicalPropertyId) return;
+    setBulkLoading(true);
+    const ids = [...selectedIds].filter((id) => {
+      const item = media.find((m) => m.id === id);
+      return item && item.isShared !== shared && item.workspaceId === currentWorkspaceId;
+    });
+    await Promise.all(
+      ids.map((id) =>
+        fetch("/api/media/share-community", {
+          method:      "POST",
+          headers:     { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ mediaId: id, canonicalPropertyId }),
+        }).catch(() => null)
+      ),
+    );
+    setMedia((m) => m.map((it) => ids.includes(it.id) ? { ...it, isShared: shared } : it));
+    showToast(shared ? `Shared ${ids.length} to community` : `Made ${ids.length} private`);
+    setBulkLoading(false);
+    exitSelectionMode();
+  }
 
   const uploaded = media.filter((m) => m.source === "BROKER_UPLOAD");
   const ingested = media.filter((m) => m.source === "WHATSAPP_INGESTED");
@@ -273,13 +330,28 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
             </span>
           )}
         </div>
-        <button
-          onClick={() => inputRef.current?.click()}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B1F14] px-3 py-1.5 text-[12px] font-medium text-white hover:bg-[#1a3525] transition-colors"
-        >
-          <Upload className="h-3.5 w-3.5" />
-          Upload
-        </button>
+        <div className="flex items-center gap-2">
+          {media.length > 0 && (
+            <button
+              onClick={() => selectionMode ? exitSelectionMode() : setSelectionMode(true)}
+              className={[
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors",
+                selectionMode
+                  ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  : "border border-slate-200 text-slate-600 hover:border-slate-400",
+              ].join(" ")}
+            >
+              {selectionMode ? "Cancel" : "Select"}
+            </button>
+          )}
+          <button
+            onClick={() => inputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B1F14] px-3 py-1.5 text-[12px] font-medium text-white hover:bg-[#1a3525] transition-colors"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Upload
+          </button>
+        </div>
         <input
           ref={inputRef}
           type="file"
@@ -298,13 +370,13 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
             onDrop={onDrop}
             onDragOver={(e) => e.preventDefault()}
             onClick={() => inputRef.current?.click()}
-            className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-10 cursor-pointer hover:border-emerald-300 hover:bg-emerald-50/40 transition-all"
+            className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-10 px-4 cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/40 transition-all"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
               <Upload className="h-5 w-5 text-slate-400" />
             </div>
             <p className="text-[13px] font-medium text-slate-600">Drop photos & videos here</p>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-slate-400 text-center leading-relaxed">
               Auto-compressed to WebP · toggle HD per file · MP4 supported
             </p>
           </div>
@@ -319,7 +391,6 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
             <div className="space-y-2">
               {queue.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
-                  {/* thumbnail */}
                   <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-slate-200">
                     {item.type === "IMAGE" ? (
                       <img src={item.preview} className="h-full w-full object-cover" alt="" />
@@ -330,7 +401,6 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
                     )}
                   </div>
 
-                  {/* info */}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[12px] font-medium text-slate-700">{item.file.name}</p>
                     <p className="text-[11px] text-slate-400">
@@ -341,14 +411,13 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
                     </p>
                   </div>
 
-                  {/* compressed toggle */}
                   {item.status === "pending" && (
                     <button
                       onClick={() => toggleCompressed(idx)}
                       className={[
                         "rounded-md px-2 py-1 text-[11px] font-medium transition-colors flex-shrink-0",
                         item.compressed
-                          ? "bg-emerald-100 text-emerald-700"
+                          ? "bg-emerald-50 text-emerald-700"
                           : "bg-slate-200 text-slate-500 hover:bg-slate-300",
                       ].join(" ")}
                     >
@@ -356,7 +425,6 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
                     </button>
                   )}
 
-                  {/* status indicators */}
                   {item.status === "compressing" && (
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
@@ -376,7 +444,6 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
                     </div>
                   )}
 
-                  {/* remove */}
                   {item.status === "pending" && (
                     <button
                       onClick={() => removeFromQueue(idx)}
@@ -389,7 +456,6 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
               ))}
             </div>
 
-            {/* Upload button */}
             {queue.some((q) => q.status === "pending") && (
               <button
                 onClick={uploadAll}
@@ -410,7 +476,6 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
           </div>
         )}
 
-        {/* Loading */}
         {loading && (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-slate-300" />
@@ -428,13 +493,11 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
                 <MediaTile
                   key={item.id}
                   item={item}
+                  selectionMode={selectionMode}
+                  selected={selectedIds.has(item.id)}
+                  onToggleSelect={() => toggleSelect(item.id)}
                   onView={() => setLightbox(item)}
-                  onDelete={() => deleteMedia(item.id)}
-                  onShare={
-                    canonicalPropertyId && item.workspaceId === currentWorkspaceId
-                      ? () => shareMedia(item.id)
-                      : undefined
-                  }
+                  editable={item.source === "BROKER_UPLOAD" && item.workspaceId === currentWorkspaceId}
                 />
               ))}
             </div>
@@ -457,8 +520,11 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
                 <MediaTile
                   key={item.id}
                   item={item}
+                  selectionMode={selectionMode}
+                  selected={selectedIds.has(item.id)}
+                  onToggleSelect={() => toggleSelect(item.id)}
                   onView={() => setLightbox(item)}
-                  onDelete={() => deleteMedia(item.id)}
+                  editable={false}
                 />
               ))}
             </div>
@@ -506,6 +572,53 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
           {toast.msg}
         </div>
       )}
+
+      {/* Floating bulk action bar */}
+      <div className={[
+        "fixed bottom-6 left-1/2 z-50 -translate-x-1/2",
+        "flex min-w-[320px] items-center gap-3 rounded-2xl",
+        "bg-[#0B1F14] px-5 py-3.5",
+        "border border-white/10 shadow-2xl",
+        "transition-all duration-300 ease-out",
+        selectedIds.size > 0
+          ? "translate-y-0 opacity-100 pointer-events-auto"
+          : "translate-y-6 opacity-0 pointer-events-none",
+      ].join(" ")}>
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-bold text-white">
+          {selectedIds.size}
+        </span>
+        <span className="text-[13px] font-medium text-white/90">selected</span>
+        <div className="ml-auto flex items-center gap-1.5">
+          {canonicalPropertyId && (
+            <>
+              <button
+                onClick={() => bulkSetShared(true)}
+                disabled={bulkLoading}
+                title="Share to community"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors disabled:opacity-50"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => bulkSetShared(false)}
+                disabled={bulkLoading}
+                title="Make private"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors disabled:opacity-50"
+              >
+                <EyeOff className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+          <button
+            onClick={bulkDelete}
+            disabled={bulkLoading}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-red-500 hover:bg-red-600 px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-50 transition-colors"
+          >
+            {bulkLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            Delete
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -513,21 +626,29 @@ export function MediaGallery({ listingId, canonicalPropertyId }: Props) {
 /* ─── Media Tile ─────────────────────────────────────────── */
 
 function MediaTile({
-  item, onView, onDelete, onShare,
+  item, selectionMode, selected, onToggleSelect, onView, editable,
 }: {
-  item:      MediaItem;
-  onView:    () => void;
-  onDelete:  () => void;
-  onShare?:  () => void;
+  item:           MediaItem;
+  selectionMode:  boolean;
+  selected:       boolean;
+  onToggleSelect: () => void;
+  onView:         () => void;
+  editable:       boolean;
 }) {
-  const [hover, setHover] = useState(false);
-
   return (
     <div
-      className="group relative aspect-square overflow-hidden rounded-xl bg-slate-100 cursor-pointer"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      onClick={onView}
+      className={[
+        "group relative aspect-square overflow-hidden rounded-xl bg-slate-100 cursor-pointer transition-all",
+        selected ? "ring-2 ring-emerald-500" : "",
+        selectionMode && !editable ? "opacity-50 cursor-not-allowed" : "",
+      ].join(" ")}
+      onClick={() => {
+        if (selectionMode) {
+          if (editable) onToggleSelect();
+        } else {
+          onView();
+        }
+      }}
     >
       {item.type === "IMAGE" ? (
         <img
@@ -541,29 +662,15 @@ function MediaTile({
         </div>
       )}
 
-      {hover && (
-        <div className="absolute inset-0 flex flex-col items-end justify-between bg-black/40 p-1.5">
-          <div className="flex gap-1">
-            {onShare && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onShare(); }}
-                className="rounded-lg bg-white/20 p-1.5 text-white hover:bg-white/30 transition-colors"
-                title={item.isShared ? "Make private" : "Share to community"}
-              >
-                <Share2 className="h-3 w-3" />
-              </button>
-            )}
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="rounded-lg bg-white/20 p-1.5 text-white hover:bg-red-500/80 transition-colors"
-              title="Delete"
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
-          </div>
-          <button className="rounded-lg bg-white/20 p-1.5 text-white">
-            <ZoomIn className="h-3 w-3" />
-          </button>
+      {/* Selection checkbox */}
+      {selectionMode && editable &&(
+        <div className={[
+          "absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all",
+          selected
+            ? "border-emerald-500 bg-emerald-500 text-white"
+            : "border-white bg-black/30 text-transparent",
+        ].join(" ")}>
+          {selected && <Check className="h-3 w-3" />}
         </div>
       )}
 

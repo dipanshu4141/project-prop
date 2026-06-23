@@ -2,13 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, X, Check, Loader2, ChevronDown } from "lucide-react";
+import { Pencil, X, Check, Loader2, ChevronDown, Phone, MessageCircle } from "lucide-react";
 import { PropertyAgentsTable } from "@/components/v2/property/PropertyAgentsTable";
 import { apiPatch, apiPost } from "@/lib/api";
-
-/* ------------------------------------------------------------------ */
-/* CONSTANTS                                                           */
-/* ------------------------------------------------------------------ */
 
 const PROPERTY_CATEGORY_OPTIONS  = ["RESIDENTIAL", "COMMERCIAL"];
 const PROPERTY_TYPE_OPTIONS      = ["APARTMENT","VILLA","OFFICE","SHOP","WAREHOUSE","SHOWROOM","PLOT","OTHER"];
@@ -18,10 +14,6 @@ const URGENCY_OPTIONS            = ["NORMAL","URGENT","VERY_URGENT"];
 const TENANT_TYPE_OPTIONS        = ["BACHELORS","FAMILY","GIRLS","BOYS","ANY"];
 const TENANT_RESTRICTION_OPTIONS = ["HINDU_ONLY","MUSLIM_ONLY","VEG_ONLY","NO_SMOKING","FAMILY_ONLY","BACHELORS_ALLOWED","COMPANY_LEASE_ONLY"];
 
-/* ------------------------------------------------------------------ */
-/* HELPERS                                                             */
-/* ------------------------------------------------------------------ */
-
 function formatPrice(v: any) {
   const n = Number(v);
   if (!v || isNaN(n)) return "—";
@@ -30,9 +22,17 @@ function formatPrice(v: any) {
   return `₹${n.toLocaleString("en-IN")}`;
 }
 
-/* ------------------------------------------------------------------ */
-/* SUB-COMPONENTS                                                      */
-/* ------------------------------------------------------------------ */
+function normalizePhoneForLink(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 10) return `91${digits}`;
+  return digits;
+}
+
+function buildWhatsAppPrefill(property: any): string {
+  const title = [property.bhk, property.propertySubType].filter(Boolean).join(" ") || "your property";
+  const location = property.area || property.city || property.location || "";
+  return `Hi, I'm interested in the ${title}${location ? ` in ${location}` : ""} (${property.refCode ?? ""}). Is it still available?`;
+}
 
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -124,7 +124,7 @@ function MultiToggle({ value = [], options, onChange }: { value: string[]; optio
             type="button"
             onClick={() => onChange(active ? value.filter((v) => v !== opt) : [...value, opt])}
             className={`rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-              active ? "border-[#0B1F14] bg-[#0B1F14] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
+              active ? "border-[#1C1917] bg-[#1C1917] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
             }`}
           >
             {opt.replace(/_/g, " ")}
@@ -135,9 +135,35 @@ function MultiToggle({ value = [], options, onChange }: { value: string[]; optio
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* MAIN COMPONENT                                                      */
-/* ------------------------------------------------------------------ */
+/* ── Quick contact bar — Call + WhatsApp for primary agent ── */
+function QuickContactBar({ property }: { property: any }) {
+  const primaryAgent = property.agents?.[0];
+  const phone = primaryAgent?.phones?.[0]?.phone;
+
+  if (!phone) return null;
+
+  const waLink = `https://api.whatsapp.com/send/?phone=${normalizePhoneForLink(phone)}&text=${encodeURIComponent(buildWhatsAppPrefill(property))}`;
+  const callLink = `tel:${phone}`;
+
+  return (
+    <div className="flex items-center justify-between gap-3 mb-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+      <div className="min-w-0">
+        <p className="text-[12.5px] font-semibold text-slate-800 truncate">{primaryAgent?.name || "Realtor"}</p>
+        <p className="text-[11px] text-slate-400">{phone}</p>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <a href={callLink}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-400 transition-colors">
+          <Phone className="h-3.5 w-3.5" />
+        </a>
+        <a href={waLink} target="_blank" rel="noopener noreferrer"
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#25D366] text-white hover:bg-[#1fb855] transition-colors">
+          <MessageCircle className="h-3.5 w-3.5" />
+        </a>
+      </div>
+    </div>
+  );
+}
 
 export function PropertyDetails({ property }: { property: any }) {
   const router = useRouter();
@@ -193,13 +219,13 @@ export function PropertyDetails({ property }: { property: any }) {
   }
 
   async function attachAgentByPhone() {
-    const phone = prompt("Enter agent phone number");
+    const phone = prompt("Enter realtor phone number");
     if (!phone) return;
     try {
       await apiPost(`/properties/${property.id}/attach-agent`, { phone });
       router.refresh();
     } catch (e: any) {
-      alert(e.message ?? "Failed to attach agent");
+      alert(e.message ?? "Failed to attach realtor");
     }
   }
 
@@ -228,7 +254,7 @@ export function PropertyDetails({ property }: { property: any }) {
             <button
               onClick={save}
               disabled={saving}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#0B1F14] text-[12.5px] font-semibold text-white hover:bg-[#1A3525] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#1C1917] text-[12.5px] font-semibold text-white hover:bg-[#2A2522] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
               {saving
                 ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -238,6 +264,9 @@ export function PropertyDetails({ property }: { property: any }) {
           </>
         )}
       </div>
+
+      {/* ── QUICK CONTACT ── */}
+      {!editMode && <QuickContactBar property={property} />}
 
       {/* ── OVERVIEW ── */}
       <Section title="Overview" defaultOpen={false}>
@@ -281,8 +310,8 @@ export function PropertyDetails({ property }: { property: any }) {
         <Row label="Restrictions"    value={property.tenantRestrictions} editMode={editMode}><MultiToggle value={draft.tenantRestrictions  || []} options={TENANT_RESTRICTION_OPTIONS} onChange={(v) => update("tenantRestrictions", v)} /></Row>
       </Section>
 
-      {/* ── BROKER ── */}
-      <Section title="Broker & source" defaultOpen={false}>
+      {/* ── REALTOR ── */}
+      <Section title="Realtor & source" defaultOpen={false}>
         <Row label="Firm" value={property.firmName} editMode={false}>{null}</Row>
 
         {editMode && (
@@ -290,7 +319,7 @@ export function PropertyDetails({ property }: { property: any }) {
             onClick={attachAgentByPhone}
             className="text-[12px] text-emerald-700 font-medium hover:underline"
           >
-            + Attach agent by phone
+            + Attach realtor by phone
           </button>
         )}
 
@@ -300,6 +329,7 @@ export function PropertyDetails({ property }: { property: any }) {
           agents={property.agents || []}
           confidence={property.confidence}
           editable={editMode}
+          property={property}
         />
       </Section>
 
