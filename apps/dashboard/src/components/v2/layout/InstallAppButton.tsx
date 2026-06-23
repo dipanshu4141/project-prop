@@ -39,12 +39,12 @@ export function InstallAppButton({ collapsed, variant = 'dark' }: { collapsed?: 
         {!collapsed && <span>Install app</span>}
       </button>
 
-      {showIosModal && (
+        {showIosModal && (
         <div
             className="fixed inset-0 z-[200] bg-black/50 flex items-end sm:items-center justify-center p-4"
             onClick={(e) => e.target === e.currentTarget && setShowIosModal(false)}
         >
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl max-h-[85vh] overflow-y-auto">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl max-h-[70vh] overflow-y-auto mb-20 sm:mb-0">
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-[15px] font-bold text-[#1C1917]">Install GrowCliento</h2>
                 <button onClick={() => setShowIosModal(false)} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
