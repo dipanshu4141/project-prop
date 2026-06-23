@@ -2,6 +2,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import { Providers } from "./providers";
 import "./globals.css";
 import type { Metadata } from "next";
+import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 
 export const viewport = {
   themeColor: '#0f172a',
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
       </head>
       <body className="h-full">
+        <ServiceWorkerRegister/>
         <Providers>
           <AuthProvider>
             {children}
