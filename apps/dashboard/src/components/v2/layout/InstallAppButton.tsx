@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Download, X, Share, SquarePlus } from 'lucide-react';
-import { usePwaInstall } from '@/hooks/usePwaInstall';
+import { usePwaInstall } from '@/context/PwaInstallContext';
 
 export function InstallAppButton({ collapsed, variant = 'dark' }: { collapsed?: boolean; variant?: 'dark' | 'light' }) {
   const { platform, canInstall, promptInstall, hasNativePrompt } = usePwaInstall();

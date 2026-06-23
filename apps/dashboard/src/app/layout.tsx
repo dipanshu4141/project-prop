@@ -3,6 +3,8 @@ import { Providers } from "./providers";
 import "./globals.css";
 import type { Metadata } from "next";
 import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
+import { PwaInstallProvider } from '@/context/PwaInstallContext';
+
 
 export const viewport = {
   themeColor: '#0f172a',
@@ -28,11 +30,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="h-full">
         <ServiceWorkerRegister/>
-        <Providers>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
-        </Providers>
+        <PwaInstallProvider>
+          <Providers>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </Providers>
+        </PwaInstallProvider>
       </body>
     </html>
   );
