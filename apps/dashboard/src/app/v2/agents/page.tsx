@@ -8,7 +8,7 @@ export default function AgentsPage() {
   return (
     <PageContainer className="bg-[#F7F5F0]">
       <PageHeader
-        title="Agents & Brokers"
+        title="Agents & Realtors"
         actions={
           <button className="
             inline-flex items-center gap-2 rounded-[9px]

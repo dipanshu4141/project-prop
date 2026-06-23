@@ -1,5 +1,5 @@
 "use client";
-
+import { InstallAppButton } from "./InstallAppButton";
 import {
   LayoutDashboard,
   Users,
@@ -145,21 +145,24 @@ function MobileProfileMenu() {
                     {item.label}
                     <ChevronRight className="h-3.5 w-3.5 text-slate-300 ml-auto" />
                   </Link>
-
                 );
               })}
 
-            {/* Logout */}
-            <div className="border-t border-slate-100 p-4">
-              <button
-                onClick={() => { setOpen(false); logout(); }}
-                className="flex w-full items-center gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-[13px] font-semibold text-red-600 hover:bg-red-100 transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                Log out
-              </button>
-            </div>
-       
+              {/* Install app */}
+              <div className="px-2 pt-1 pb-2">
+                <InstallAppButton variant="light" />
+              </div>
+
+              {/* Logout */}
+              <div className="border-t border-slate-100 p-4">
+                <button
+                  onClick={() => { setOpen(false); logout(); }}
+                  className="flex w-full items-center gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-[13px] font-semibold text-red-600 hover:bg-red-100 transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Log out
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -286,6 +289,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </Link>
             </div>
           )}
+        </div>
+
+        {/* Install app button */}
+        <div className="px-2 pb-2">
+          <InstallAppButton collapsed={collapsed} />
         </div>
 
         {/* User card */}

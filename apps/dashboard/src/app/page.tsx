@@ -482,7 +482,7 @@ export default function HomePage() {
           <div className="lp-hero-inner">
             <div className="lp-badge">
               <div className="lp-badge-dot" />
-              Built for Indian real estate brokers
+              Built for Indian real estate realtors
             </div>
 
             <h1 className="lp-h1">
@@ -491,7 +491,7 @@ export default function HomePage() {
             </h1>
 
             <p className="lp-sub">
-              GrowCliento ingests your WhatsApp group listings automatically, deduplicates properties, and gives every broker in your firm a shared CRM — without the chaos.
+              GrowCliento ingests your WhatsApp group listings automatically, deduplicates properties, and gives every realtor in your firm a shared CRM — without the chaos.
             </p>
 
             <div className="lp-hero-btns">
@@ -601,10 +601,10 @@ export default function HomePage() {
         <div className="lp-features">
           <div className="lp-section-label">Features</div>
           <h2 className="lp-section-title">
-            Everything a broker firm needs.<br />Nothing they don't.
+            Everything a realtor firm needs.<br />Nothing they don't.
           </h2>
           <p className="lp-section-sub">
-            Built specifically for how Indian real estate brokers actually work — WhatsApp groups, shared listings, competitive clients.
+            Built specifically for how Indian real estate realtors actually work — WhatsApp groups, shared listings, competitive clients.
           </p>
 
           <div className="lp-feat-grid">
@@ -617,7 +617,7 @@ export default function HomePage() {
               {
                 icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
                 name: 'AI Property Deduplication',
-                desc: 'Same property listed by 5 brokers? Our AI fingerprints each property and merges duplicates into a single canonical record.',
+                desc: 'Same property listed by 5 realtors? Our AI fingerprints each property and merges duplicates into a single canonical record.',
               },
               {
                 icon: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z',
@@ -632,11 +632,11 @@ export default function HomePage() {
               {
                 icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z',
                 name: 'Property Media',
-                desc: 'Attach photos and videos to listings. Broker-uploaded or WhatsApp-ingested. Stored on R2 with smart quota tracking.',
+                desc: 'Attach photos and videos to listings. realtor-uploaded or WhatsApp-ingested. Stored on R2 with smart quota tracking.',
               },
               {
                 icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
-                name: 'Multi-Broker Workspace',
+                name: 'Multi-realtor Workspace',
                 desc: 'Add your whole team. Role-based access, shared listings, individual lead ownership — built for how firms actually operate.',
               },
             ].map((f, i) => (
@@ -680,7 +680,7 @@ export default function HomePage() {
         {/* FOOTER */}
         <footer className="lp-footer">
           <div className="lp-footer-copy">
-            © 2026 GrowCliento · Built for Indian real estate brokers
+            © 2026 GrowCliento · Built for Indian real estate realtors
           </div>
           <div className="lp-footer-links">
             <Link href="/login">Sign in</Link>

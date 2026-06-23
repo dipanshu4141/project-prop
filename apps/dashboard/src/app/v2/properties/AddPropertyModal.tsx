@@ -246,7 +246,7 @@ export default function AddPropertyModal({
                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
                   setRawText(e.target.value)
                 }
-                placeholder={`2BHK Andheri West\n850 sqft, Rent 75k\nDeposit 2L, Family Only\nBroker Rahul 9820000000`}
+                placeholder={`2BHK Andheri West\n850 sqft, Rent 75k\nDeposit 2L, Family Only\nrealtor Rahul 9820000000`}
                 className="
                   w-full resize-none rounded-xl border border-slate-200
                   bg-slate-50 px-4 py-3 text-sm text-slate-800

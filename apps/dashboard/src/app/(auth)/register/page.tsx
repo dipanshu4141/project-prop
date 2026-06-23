@@ -548,7 +548,7 @@ function StandardRegisterForm() {
       </div>
 
       <h1 className="text-[20px] font-bold text-slate-900 mb-1">Create your account</h1>
-      <p className="text-[13px] text-slate-500 mb-6">Set up your individual broker workspace.</p>
+      <p className="text-[13px] text-slate-500 mb-6">Set up your individual realtor workspace.</p>
 
       {error && (
         <div className="mb-5 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-[13px] text-red-700">{error}</div>

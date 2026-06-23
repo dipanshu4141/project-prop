@@ -69,7 +69,7 @@ function SuspendModal({
           Suspend workspace
         </h2>
         <p className="text-sm text-gray-500 mb-4">
-          <strong>{workspace.name}</strong> will be deactivated. Brokers won't be able to log in.
+          <strong>{workspace.name}</strong> will be deactivated. realtors won't be able to log in.
         </p>
         <textarea
           value={reason}
@@ -258,7 +258,7 @@ export function AdminWorkspacesClient({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold" style={{ color: '#0B1F14' }}>Workspaces</h1>
-        <p className="text-sm text-gray-400 mt-1">All firms and solo brokers on the platform.</p>
+        <p className="text-sm text-gray-400 mt-1">All firms and solo realtors on the platform.</p>
       </div>
 
       {/* Filters */}

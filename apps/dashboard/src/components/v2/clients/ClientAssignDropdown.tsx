@@ -115,7 +115,7 @@ export function ClientAssignDropdown({
               </div>
               <div>
                 <p className="text-[12.5px] font-semibold text-violet-700">Lead Pool</p>
-                <p className="text-[10.5px] text-slate-400">Unassign — visible to all brokers</p>
+                <p className="text-[10.5px] text-slate-400">Unassign — visible to all realtors</p>
               </div>
               {!currentOwnerId && (
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="ml-auto">
@@ -128,7 +128,7 @@ export function ClientAssignDropdown({
               <div className="my-1 border-t border-slate-100" />
             )}
 
-            {/* Broker list */}
+            {/* realtor list */}
             {members.map((m) => {
               const isSelected = m.user.id === currentOwnerId;
               const initials   = (m.user.name ?? m.user.email)

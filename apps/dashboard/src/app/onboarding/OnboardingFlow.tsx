@@ -66,7 +66,7 @@ function PlanStep({ onNext }: { onNext: () => void }) {
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="font-bold text-[15px]" style={{ color: '#0B1F14' }}>GrowCliento Pro</p>
-            <p className="text-[12px] text-gray-400 mt-0.5">Individual broker</p>
+            <p className="text-[12px] text-gray-400 mt-0.5">Individual realtor</p>
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold" style={{ color: '#0B1F14' }}>₹999</p>

@@ -533,15 +533,18 @@ export function ShareMultiplePropertiesModal({
     clientName, clientPhone, shareUrl, linkLoading, resolving,
   ]);
 
-  // ── Share handler ──
+    // ── Share handler ──
   async function share() {
     if (!clientPhone || resolvedProperties.length === 0) return;
     const phone = clientPhone.replace(/\D/g, '');
     if (!phone) return;
 
     setLoading(true);
+
+    // Open a blank window IMMEDIATELY (synchronously) to preserve iOS user-gesture trust
+    const waWindow = window.open('', '_blank');
+
     try {
-      // If link isn't ready yet, try one final generation
       let finalUrl = shareUrl;
       if (!finalUrl && isValidPhone(clientPhone)) {
         try {
@@ -553,11 +556,10 @@ export function ShareMultiplePropertiesModal({
           setShareUrl(data.url);
           setLinkClientId(data.clientId);
         } catch {
-          // non-fatal — send without link
+          // non-fatal
         }
       }
 
-      // Build final message with real URL
       const senders: MessageSender[] =
         selectedTeam.length > 0 ? selectedTeam : selfEntry ? [selfEntry] : [];
       const message = buildWhatsAppMessageForMultiple(
@@ -567,7 +569,6 @@ export function ShareMultiplePropertiesModal({
         finalUrl,
       );
 
-      // Record share events (non-fatal)
       await Promise.all(
         resolvedProperties.map((p) =>
           apiPost(`/properties/${p.id}/share`, {
@@ -580,17 +581,21 @@ export function ShareMultiplePropertiesModal({
         ),
       );
 
-      // Open WhatsApp
+      // Redirect the already-open window now that we have the final message
       const params = new URLSearchParams();
       params.set('phone', `91${phone}`);
-      params.set('text',  message);
-      window.open(
-        `https://api.whatsapp.com/send/?${params.toString()}`,
-        '_blank',
-        'noopener,noreferrer',
-      );
+      params.set('text', message);
+      const url = `https://api.whatsapp.com/send/?${params.toString()}`;
+
+      if (waWindow) {
+        waWindow.location.href = url;
+      } else {
+        // Popup was blocked anyway — fallback
+        window.location.href = url;
+      }
     } catch (err) {
       console.error('Share failed:', err);
+      waWindow?.close();
     } finally {
       setLoading(false);
       onClose();

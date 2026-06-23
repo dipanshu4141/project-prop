@@ -45,7 +45,7 @@ export default function PhonePage() {
         <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-8">
           <h1 className="text-[20px] font-bold text-slate-900 mb-1">One last thing</h1>
           <p className="text-[13px] text-slate-500 mb-6">
-            Add your mobile number so brokers can reach you. This stays private.
+            Add your mobile number so realtors can reach you. This stays private.
           </p>
 
           {error && (

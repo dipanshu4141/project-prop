@@ -110,7 +110,7 @@ function ExpiredScreen() {
       </h1>
       <p className="text-gray-500 text-center max-w-xs leading-relaxed">
         This property sharing link has expired or is no longer valid.
-        Ask your broker to send you a new link.
+        Ask your realtor to send you a new link.
       </p>
     </div>
   );

@@ -76,14 +76,14 @@ function InviteModal({ onClose, onSent }: { onClose: () => void; onSent: () => v
             <div>
               <label className="block text-[12.5px] font-semibold text-slate-600 mb-1.5">Email address</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="broker@example.com" required
+                placeholder="realtor@example.com" required
                 className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-[13.5px] text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-slate-400 focus:outline-none transition-colors" />
             </div>
             <div>
               <label className="block text-[12.5px] font-semibold text-slate-600 mb-1.5">Role</label>
               <select value={role} onChange={(e) => setRole(e.target.value as any)}
                 className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-[13.5px] text-slate-700 focus:outline-none focus:border-slate-400">
-                <option value="BROKER">Broker — can manage own leads and properties</option>
+                <option value="BROKER">realtor — can manage own leads and properties</option>
                 <option value="VIEWER">Viewer — read-only access</option>
               </select>
             </div>
@@ -200,7 +200,7 @@ export default function TeamPage() {
               <span className="flex h-4 w-4 items-center justify-center rounded bg-emerald-500">
                 <UserPlus className="h-3 w-3 text-white" />
               </span>
-              Invite broker
+              Invite realtor
             </button>
           ) : undefined
         }
@@ -252,7 +252,7 @@ export default function TeamPage() {
                         <select value={m.role} onChange={(e) => handleRoleChange(m.memberId, e.target.value)}
                           className="h-7 pl-2 pr-6 rounded-lg border border-slate-200 bg-white text-[12px] text-slate-700 appearance-none focus:outline-none focus:border-slate-400 cursor-pointer">
                           <option value="OWNER">Owner</option>
-                          <option value="BROKER">Broker</option>
+                          <option value="BROKER">Realtor</option>
                           <option value="VIEWER">Viewer</option>
                         </select>
                         <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
