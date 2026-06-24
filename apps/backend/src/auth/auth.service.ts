@@ -40,70 +40,80 @@ export class AuthService {
   // ─────────────────────────────────────────────────────────────
 
   async register(dto: RegisterDto, req?: Request): Promise<TokenResponseDto> {
-    // 1. Check email not already taken
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email.toLowerCase() },
     });
-    if (existing) throw new ConflictException('Email already registered');
+    if (existing) throw new ConflictException('An account with this email already exists. Try signing in instead.');
 
-    // 2. Hash password
+    const existingPhone = await this.prisma.user.findUnique({
+      where: { phone: dto.phone },
+    });
+    if (existingPhone) throw new ConflictException('This phone number is already registered. Try signing in instead.');
+
     const passwordHash = await bcrypt.hash(dto.password, 12);
-
-    // 3. Generate workspace slug from name
     const slug = await this.generateUniqueSlug(dto.workspaceName);
 
-    // 4. Create everything in a transaction
-    const { user, workspace, member } = await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          email:        dto.email.toLowerCase(),
-          passwordHash,
-          name:         dto.name,
-          phone:        dto.phone,
-        },
+    try {
+      const { user, workspace, member } = await this.prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email:        dto.email.toLowerCase(),
+            passwordHash,
+            name:         dto.name,
+            phone:        dto.phone,
+          },
+        });
+
+        const workspace = await tx.workspace.create({
+          data: {
+            name: dto.workspaceName,
+            slug,
+            type: dto.workspaceType,
+            plan: 'INDIVIDUAL',
+            planSelected: true,
+          },
+        });
+
+        const member = await tx.workspaceMember.create({
+          data: {
+            workspaceId: workspace.id,
+            userId:      user.id,
+            role:        MemberRole.OWNER,
+          },
+        });
+
+        await tx.subscription.create({
+          data: {
+            workspaceId: workspace.id,
+            plan:        'INDIVIDUAL',
+            status:      'TRIALING',
+            seats:       1,
+            seatsUsed:   1,
+            trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          },
+        });
+
+        return { user, workspace, member };
       });
 
-      const workspace = await tx.workspace.create({
-        data: {
-          name: dto.workspaceName,
-          slug,
-          type: dto.workspaceType,
-          plan: 'FREE',
-        },
-      });
-
-      const member = await tx.workspaceMember.create({
-        data: {
-          workspaceId: workspace.id,
-          userId:      user.id,
-          role:        MemberRole.OWNER,
-        },
-      });
-
-      // Create a FREE subscription record
-      await tx.subscription.create({
-        data: {
-          workspaceId: workspace.id,
-          plan:        'FREE',
-          status:      'TRIALING',
-          seats:       dto.workspaceType === 'INDIVIDUAL' ? 1 : 5,
-          seatsUsed:   1,
-          trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
-        },
-      });
-
-      return { user, workspace, member };
-    });
-
-    await this.sendVerificationEmail(user.id);
-    // 5. Issue tokens
-    return this.issueTokens(
-      { sub: user.id, email: user.email, workspaceId: workspace.id, role: member.role, platformRole: user.platformRole, planSelected: false },
-      workspace,
-      user,
-      member.role,
-      req,
-    );
+      await this.sendVerificationEmail(user.id);
+      return this.issueTokens(
+        { sub: user.id, email: user.email, workspaceId: workspace.id, role: member.role, platformRole: user.platformRole, planSelected: true },
+        workspace,
+        user,
+        member.role,
+        req,
+      );
+    } catch (err: any) {
+      // Catch race-condition duplicate (two requests at same millisecond)
+      if (err.code === 'P2002') {
+        const target = err.meta?.target?.join(', ') ?? 'field';
+        if (target.includes('email')) throw new ConflictException('An account with this email already exists.');
+        if (target.includes('phone')) throw new ConflictException('This phone number is already registered.');
+        throw new ConflictException('This account already exists.');
+      }
+      throw err;
+    }
   }
 
   async updatePhone(userId: string, phone: string): Promise<void> {
@@ -190,16 +200,25 @@ if (!user.passwordHash) throw new UnauthorizedException('This account uses Googl
           },
         });
         const ws = await tx.workspace.create({
-          data: { name: profile.name, slug, type: 'INDIVIDUAL', plan: 'FREE' },
+          data: {
+            name: profile.name,
+            slug,
+            type: 'INDIVIDUAL',
+            plan: 'INDIVIDUAL',
+            planSelected: true,
+          },
         });
         await tx.workspaceMember.create({
           data: { workspaceId: ws.id, userId: u.id, role: 'OWNER' },
         });
         await tx.subscription.create({
           data: {
-            workspaceId: ws.id, plan: 'FREE', status: 'TRIALING',
-            seats: 1, seatsUsed: 1,
-            trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+            workspaceId: ws.id,
+            plan:        'INDIVIDUAL',
+            status:      'TRIALING',
+            seats:       1,
+            seatsUsed:   1,
+            trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           },
         });
         return u;
@@ -213,16 +232,16 @@ if (!user.passwordHash) throw new UnauthorizedException('This account uses Googl
     if (!member) throw new UnauthorizedException('No workspace found');
 
     const payload: JwtPayload = {
-      sub: user.id, 
+      sub: user.id,
       email: user.email,
-      workspaceId: member.workspaceId, 
-      role: member.role, 
+      workspaceId: member.workspaceId,
+      role: member.role,
       platformRole: user.platformRole,
       planSelected: member.workspace.planSelected ?? false,
     };
 
     const tokens = await this.issueTokens(payload, member.workspace, user, member.role, req);
-  return { ...tokens, isNewUser: !existingUser };
+    return { ...tokens, isNewUser: !existingUser };
   }
 
   // ─── SEND VERIFICATION EMAIL ────────────────────────────────────────

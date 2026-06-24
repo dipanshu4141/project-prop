@@ -720,6 +720,9 @@ function SectionCard({
 /* ------------------------------------------------------------------ */
 
 export default function DashboardPage() {
+  // if (typeof window !== 'undefined' && window.location.search.includes('crash=1')) {
+  //   throw new Error('Test crash');
+  // }
   const { user, loading } = useAuth();
 
   const { data: today    = [] } = useSWR<FollowUpItem[]>(
