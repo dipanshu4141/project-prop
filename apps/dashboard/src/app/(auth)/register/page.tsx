@@ -418,7 +418,7 @@ function InviteCodeGate({ onValid }: { onValid: () => void }) {
       <p className="mt-4 text-center text-[12px] text-slate-400">
         Don't have a code?{' '}
         <a
-          href="https://wa.me/917XXXXXXXXX"
+          href="https://wa.me/919717970520"
           target="_blank"
           rel="noopener noreferrer"
           className="font-semibold text-slate-600 hover:text-slate-800 transition-colors"
