@@ -139,30 +139,35 @@ export class AuthService {
 
     if (!user || !user.isActive) throw new UnauthorizedException('Invalid credentials');
 
-if (!user.passwordHash) throw new UnauthorizedException('This account uses Google sign-in. Please continue with Google.');
-    const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!passwordValid) throw new UnauthorizedException('Invalid credentials');
+      if (!user.passwordHash) throw new UnauthorizedException('This account uses Google sign-in. Please continue with Google.');
+          const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
+          if (!passwordValid) throw new UnauthorizedException('Invalid credentials');
 
-    // Get the user's primary workspace membership (OWNER first, then any)
-    const member = await this.prisma.workspaceMember.findFirst({
-      where:   { userId: user.id },
-      orderBy: { joinedAt: 'asc' },
-      include: { workspace: true },
-    });
+          // Get the user's primary workspace membership (OWNER first, then any)
+          const member = await this.prisma.workspaceMember.findFirst({
+            where:   { userId: user.id },
+            orderBy: { joinedAt: 'asc' },
+            include: { workspace: true },
+          });
 
-    if (!member) throw new BadRequestException('No workspace found for this user');
-    if (!member.workspace.isActive) throw new UnauthorizedException('Workspace suspended');
+          if (!member) throw new BadRequestException('No workspace found for this user');
+          if (!member.workspace.isActive) throw new UnauthorizedException('Workspace suspended');
 
-    const payload: JwtPayload = {
-      sub:          user.id,
-      email:        user.email,
-      workspaceId:  member.workspaceId,
-      role:         member.role,
-      platformRole: user.platformRole,
-      planSelected: member.workspace.planSelected ?? false,
-    };
+          const payload: JwtPayload = {
+            sub:          user.id,
+            email:        user.email,
+            workspaceId:  member.workspaceId,
+            role:         member.role,
+            platformRole: user.platformRole,
+            planSelected: member.workspace.planSelected ?? false,
+          };
+          
+          this.prisma.usageEvent.create({
+            data: { workspaceId: member.workspaceId, event: 'user.login', occurredAt: new Date() },
+          }).catch(() => {});
 
     return this.issueTokens(payload, member.workspace, user, member.role, req);
+
   }
 
 

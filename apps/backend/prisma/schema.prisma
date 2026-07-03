@@ -223,6 +223,7 @@ model Workspace {
 
   plan      String        @default("FREE")
   isActive  Boolean       @default(true)
+  lastActiveAt DateTime?
   suspendedAt     DateTime?
   suspendedReason String?
 

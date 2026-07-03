@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import * as path from 'path';
-
+import { NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { PrismaModule }     from './core/prisma/prisma.module';
 import { AuthModule }       from './auth/auth.module';
 import { AdminModule }      from './modules/admin/admin.module';
@@ -32,6 +32,7 @@ import { PrivateGroupsModule } from './modules/private-groups/private-groups.mod
 import { BillingGuard } from './modules/billing/billing.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
+import { ActivityMiddleware } from './middleware/activity.middleware';
 
 
 
@@ -73,4 +74,8 @@ import { JwtModule } from '@nestjs/jwt';
   },DealsService, DashboardService],
 
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(ActivityMiddleware).forRoutes('*');
+  }
+}

@@ -1,271 +1,305 @@
 'use client';
-// apps/dashboard/src/app/v2/admin/users/AdminUsersClient.tsx
 
-import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { apiPatch } from '@/lib/api';
-import type { UserListResponse, UserRow } from './page';
+import { useEffect, useState, useCallback } from 'react';
+import { Search, Shield, UserX, UserCheck, ChevronDown, X } from 'lucide-react';
 
-function timeAgo(iso: string | null) {
+interface WorkspaceUsageEvent {
+  occurredAt: string;
+}
+
+interface Workspace {
+  id:           string;
+  name:         string;
+  slug:         string;
+  plan:         string;
+  lastActiveAt: string | null;
+}
+
+interface Membership {
+  role:      string;
+  joinedAt:  string;
+  workspace: Workspace;
+}
+
+interface User {
+  id:            string;
+  name:          string | null;
+  email:         string;
+  phone:         string | null;
+  avatarUrl:     string | null;
+  platformRole:  string;
+  emailVerified: boolean;
+  isActive:      boolean;
+  deactivatedAt: string | null;
+  createdAt:     string;
+  memberships:   Membership[];
+}
+
+function timeAgo(iso: string | null): string {
   if (!iso) return '—';
-  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-  if (d === 0) return 'Today'; if (d === 1) return 'Yesterday';
-  if (d < 30)  return `${d}d ago`; return `${Math.floor(d / 30)}mo ago`;
+  const diff  = Date.now() - new Date(iso).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (mins  <  1) return 'Just now';
+  if (mins  < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
 }
 
-function buildPageRange(cur: number, total: number): (number | '…')[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const p: (number | '…')[] = [1];
-  if (cur > 3) p.push('…');
-  for (let i = Math.max(2, cur - 1); i <= Math.min(total - 1, cur + 1); i++) p.push(i);
-  if (cur < total - 2) p.push('…');
-  p.push(total); return p;
+function getLastActive(user: User): string {
+  const dates = user.memberships
+    .map(m => (m.workspace as any).lastActiveAt)
+    .filter(Boolean);
+  if (!dates.length) return '—';
+  const latest = dates.sort((a: string, b: string) =>
+    new Date(b).getTime() - new Date(a).getTime()
+  )[0];
+  return timeAgo(latest);
 }
 
-function initials(name: string | null, email: string) {
-  if (name) return name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
-  return email.slice(0, 2).toUpperCase();
+function roleBadge(role: string) {
+  const map: Record<string, string> = {
+    SUPERADMIN: 'bg-violet-100 text-violet-700',
+    SUPPORT:    'bg-sky-100 text-sky-700',
+    USER:       'bg-slate-100 text-slate-500',
+  };
+  return map[role] ?? 'bg-slate-100 text-slate-500';
 }
 
-const ROLE_STYLES: Record<string, string> = {
-  SUPERADMIN: 'bg-red-50 text-red-700',
-  SUPPORT:    'bg-amber-50 text-amber-700',
-  USER:       'bg-gray-100 text-gray-500',
-};
+function planBadge(plan: string) {
+  const map: Record<string, string> = {
+    INDIVIDUAL: 'bg-emerald-100 text-emerald-700',
+    FIRM:       'bg-amber-100 text-amber-700',
+  };
+  return map[plan] ?? 'bg-slate-100 text-slate-500';
+}
 
-// ── Role dropdown ─────────────────────────────────────────────────────────────
+export default function AdminUsersClient() {
+  const [users,    setUsers]    = useState<User[]>([]);
+  const [total,    setTotal]    = useState(0);
+  const [pages,    setPages]    = useState(1);
+  const [page,     setPage]     = useState(1);
+  const [q,        setQ]        = useState('');
+  const [role,     setRole]     = useState('');
+  const [active,   setActive]   = useState('');
+  const [loading,  setLoading]  = useState(true);
+  const [actingOn, setActingOn] = useState<string | null>(null);
 
-function RoleDropdown({
-  userId, current, onChange,
-}: { userId: string; current: string; onChange: (id: string, role: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const roles = ['USER', 'SUPPORT', 'SUPERADMIN'];
+  const load = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    params.set('page',  String(page));
+    params.set('limit', '20');
+    if (q)      params.set('q',            q);
+    if (role)   params.set('platformRole', role);
+    if (active) params.set('active',       active);
+    const res  = await fetch(`/api/admin/users?${params}`, { credentials: 'include' });
+    const data = await res.json();
+    setUsers(data.items ?? []);
+    setTotal(data.total ?? 0);
+    setPages(data.pages ?? 1);
+    setLoading(false);
+  }, [page, q, role, active]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function setUserRole(userId: string, newRole: string) {
+    setActingOn(userId);
+    await fetch(`/api/admin/users/${userId}/role`, {
+      method:      'PATCH',
+      headers:     { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ role: newRole }),
+    });
+    await load();
+    setActingOn(null);
+  }
+
+  async function toggleActive(user: User) {
+    setActingOn(user.id);
+    const endpoint = user.isActive ? 'deactivate' : 'activate';
+    await fetch(`/api/admin/users/${user.id}/${endpoint}`, {
+      method:      'POST',
+      credentials: 'include',
+    });
+    await load();
+    setActingOn(null);
+  }
+
   return (
-    <div className="relative inline-block">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold ${ROLE_STYLES[current] ?? 'bg-gray-100 text-gray-500'}`}
-      >
-        {current}
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-          <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 z-20 rounded-xl overflow-hidden min-w-[140px]"
-            style={{ background: '#fff', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', border: '1px solid rgba(0,0,0,0.06)' }}>
-            {roles.map((r) => (
-              <button key={r} onClick={() => { onChange(userId, r); setOpen(false); }}
-                className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 flex items-center justify-between">
-                <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${ROLE_STYLES[r]}`}>{r}</span>
-                {r === current && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
+    <div className="space-y-4">
 
-// ── Row ───────────────────────────────────────────────────────────────────────
-
-function UserTableRow({
-  row, onRoleChange, onToggleActive,
-}: { row: UserRow; onRoleChange: (id: string, role: string) => void; onToggleActive: (id: string, active: boolean) => void }) {
-  const primaryWs = row.memberships[0];
-  return (
-    <tr className="border-b border-gray-50 hover:bg-[#F7F5F0]/60 transition-colors">
-      <td className="py-4 pl-6 pr-4">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-            style={{ background: '#0B1F14', color: '#fff' }}>
-            {initials(row.name, row.email)}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-[#0B1F14] leading-tight">{row.name ?? '—'}</p>
-            <p className="text-xs text-gray-400">{row.email}</p>
-          </div>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <input
+            value={q}
+            onChange={e => { setQ(e.target.value); setPage(1); }}
+            placeholder="Search name, email, phone…"
+            className="w-full h-9 pl-8 pr-3 rounded-lg border border-slate-200 bg-white text-[13px] focus:outline-none focus:border-slate-400"
+          />
+          {q && (
+            <button onClick={() => { setQ(''); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
-      </td>
 
-      <td className="py-4 px-4">
-        <RoleDropdown userId={row.id} current={row.platformRole} onChange={onRoleChange} />
-      </td>
+        <select value={role} onChange={e => { setRole(e.target.value); setPage(1); }}
+          className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-600 focus:outline-none focus:border-slate-400">
+          <option value="">All roles</option>
+          <option value="USER">User</option>
+          <option value="SUPPORT">Support</option>
+          <option value="SUPERADMIN">Superadmin</option>
+        </select>
 
-      <td className="py-4 px-4">
-        {primaryWs ? (
-          <div>
-            <p className="text-xs font-medium text-gray-700">{primaryWs.workspace.name}</p>
-            <p className="text-[10px] text-gray-400">{primaryWs.role} · {primaryWs.workspace.plan}</p>
-            {row.memberships.length > 1 && (
-              <p className="text-[10px] text-gray-400">+{row.memberships.length - 1} more</p>
-            )}
-          </div>
-        ) : (
-          <span className="text-xs text-gray-400">No workspace</span>
-        )}
-      </td>
+        <select value={active} onChange={e => { setActive(e.target.value); setPage(1); }}
+          className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-600 focus:outline-none focus:border-slate-400">
+          <option value="">All status</option>
+          <option value="true">Active</option>
+          <option value="false">Deactivated</option>
+        </select>
 
-      <td className="py-4 px-4">
-        {row.emailVerified ? (
-          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">Verified</span>
-        ) : (
-          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">Unverified</span>
-        )}
-      </td>
-
-      <td className="py-4 px-4">
-        {row.isActive ? (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Active
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-md">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />Inactive
-          </span>
-        )}
-      </td>
-
-      <td className="py-4 px-4 text-xs text-gray-400 whitespace-nowrap hidden md:table-cell">
-        {timeAgo(row.createdAt)}
-      </td>
-
-      <td className="py-4 pl-4 pr-6">
-        <button
-          onClick={() => onToggleActive(row.id, !row.isActive)}
-          className={`text-xs font-semibold transition-colors ${row.isActive ? 'text-red-500 hover:text-red-700' : 'text-emerald-600 hover:text-emerald-800'}`}
-        >
-          {row.isActive ? 'Deactivate' : 'Activate'}
-        </button>
-      </td>
-    </tr>
-  );
-}
-
-// ── Main ──────────────────────────────────────────────────────────────────────
-
-export function AdminUsersClient({
-  initialData, searchParams,
-}: { initialData: UserListResponse; searchParams: Record<string, string> }) {
-  const router      = useRouter();
-  const [, startTx] = useTransition();
-  const [q, setQ]   = useState(searchParams.q ?? '');
-  const [items, setItems] = useState(initialData.items);
-  const page = Number(searchParams.page ?? 1);
-
-  function navigate(params: Record<string, string | undefined>) {
-    const merged = { ...searchParams, ...params };
-    const p = new URLSearchParams();
-    Object.entries(merged).forEach(([k, v]) => { if (v) p.set(k, v); });
-    startTx(() => router.push(`?${p.toString()}`));
-  }
-
-  async function handleRoleChange(id: string, role: string) {
-    const prev = items.find((u) => u.id === id);
-    setItems((p) => p.map((u) => u.id === id ? { ...u, platformRole: role } : u));
-    try {
-      await apiPatch(`/admin/users/${id}/platform-role`, { role });
-    } catch {
-      if (prev) setItems((p) => p.map((u) => u.id === id ? prev : u));
-    }
-  }
-
-  async function handleToggleActive(id: string, active: boolean) {
-    const prev = items.find((u) => u.id === id);
-    setItems((p) => p.map((u) => u.id === id ? { ...u, isActive: active } : u));
-    try {
-      await apiPatch(`/admin/users/${id}/${active ? 'activate' : 'deactivate'}`, {});
-    } catch {
-      if (prev) setItems((p) => p.map((u) => u.id === id ? prev : u));
-    }
-  }
-
-  const ROLE_BTNS = [
-    { label: 'All',        value: undefined     },
-    { label: 'User',       value: 'USER'        },
-    { label: 'Support',    value: 'SUPPORT'     },
-    { label: 'SuperAdmin', value: 'SUPERADMIN'  },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: '#0B1F14' }}>Users</h1>
-        <p className="text-sm text-gray-400 mt-1">All registered users across all workspaces.</p>
+        <span className="text-[12px] text-slate-400 ml-auto">{total} users</span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl px-5 py-3.5"
-        style={{ background: '#fff', border: '1px solid rgba(11,31,20,0.07)' }}>
-        <form onSubmit={(e) => { e.preventDefault(); navigate({ q: q || undefined, page: '1' }); }}
-          className="flex gap-2 flex-1 min-w-[220px]">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, email, phone…"
-            className="flex-1 h-8 rounded-lg border border-gray-200 px-3 text-sm bg-gray-50 focus:outline-none focus:border-gray-400" />
-          <button type="submit" className="h-8 px-4 rounded-lg text-sm font-semibold text-white" style={{ background: '#0B1F14' }}>Search</button>
-        </form>
-        <div className="flex gap-1">
-          {ROLE_BTNS.map((b) => (
-            <button key={b.label} onClick={() => navigate({ platformRole: b.value, page: '1' })}
-              className="h-8 px-3 rounded-lg text-xs font-semibold border transition-colors"
-              style={searchParams.platformRole === b.value ? { background: '#0B1F14', color: '#fff', borderColor: '#0B1F14' } : { background: '#fff', color: '#6b7280', borderColor: '#e5e7eb' }}>
-              {b.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          {[{ label: 'All', value: undefined }, { label: 'Active', value: 'true' }, { label: 'Inactive', value: 'false' }].map((b) => (
-            <button key={b.label} onClick={() => navigate({ active: b.value, page: '1' })}
-              className="h-8 px-3 rounded-lg text-xs font-semibold border transition-colors"
-              style={searchParams.active === b.value ? { background: '#0B1F14', color: '#fff', borderColor: '#0B1F14' } : { background: '#fff', color: '#6b7280', borderColor: '#e5e7eb' }}>
-              {b.label}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-gray-400 ml-auto">{initialData.total.toLocaleString('en-IN')} users</p>
-      </div>
-
-      <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid rgba(11,31,20,0.07)' }}>
+      {/* Table */}
+      <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full text-[13px]">
             <thead>
-              <tr style={{ background: '#F7F5F0', borderBottom: '1px solid rgba(11,31,20,0.07)' }}>
-                {['User', 'Platform Role', 'Workspace', 'Email', 'Status', 'Joined', ''].map((h, i) => (
-                  <th key={h + i} className={`py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400 ${i === 0 ? 'pl-6 pr-4' : i === 6 ? 'pl-4 pr-6' : 'px-4'} ${i === 5 ? 'hidden md:table-cell' : ''}`}>{h}</th>
-                ))}
+              <tr className="border-b border-slate-100 bg-slate-50">
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">User</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Workspace</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Plan</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Platform role</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Last active</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Joined</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Status</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr><td colSpan={7} className="py-20 text-center text-sm text-gray-400">No users found.</td></tr>
-              ) : items.map((row) => (
-                <UserTableRow key={row.id} row={row} onRoleChange={handleRoleChange} onToggleActive={handleToggleActive} />
-              ))}
+            <tbody className="divide-y divide-slate-50">
+              {loading ? (
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-[13px] text-slate-400">Loading…</td></tr>
+              ) : users.length === 0 ? (
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-[13px] text-slate-400">No users found</td></tr>
+              ) : users.map(user => {
+                const primary = user.memberships?.[0];
+                return (
+                  <tr key={user.id} className={`hover:bg-slate-50 transition-colors ${!user.isActive ? 'opacity-50' : ''}`}>
+
+                    {/* User */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600">
+                          {user.name?.charAt(0)?.toUpperCase() ?? user.email.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-800 truncate max-w-[160px]">{user.name ?? '—'}</p>
+                          <p className="text-[11px] text-slate-400 truncate max-w-[160px]">{user.email}</p>
+                          {user.phone && <p className="text-[11px] text-slate-400">{user.phone}</p>}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Workspace */}
+                    <td className="px-4 py-3">
+                      {primary ? (
+                        <div>
+                          <p className="font-medium text-slate-700 truncate max-w-[140px]">{primary.workspace.name}</p>
+                          <p className="text-[11px] text-slate-400">{primary.role}</p>
+                        </div>
+                      ) : <span className="text-slate-300">—</span>}
+                    </td>
+
+                    {/* Plan */}
+                    <td className="px-4 py-3">
+                      {primary?.workspace.plan ? (
+                        <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${planBadge(primary.workspace.plan)}`}>
+                          {primary.workspace.plan}
+                        </span>
+                      ) : <span className="text-slate-300">—</span>}
+                    </td>
+
+                    {/* Platform role */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${roleBadge(user.platformRole)}`}>
+                          {user.platformRole}
+                        </span>
+                        <div className="relative group">
+                          <button className="text-slate-300 hover:text-slate-500">
+                            <ChevronDown className="h-3 w-3" />
+                          </button>
+                          <div className="absolute left-0 top-5 z-10 hidden group-hover:block bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[130px]">
+                            {['USER', 'SUPPORT', 'SUPERADMIN'].map(r => (
+                              <button key={r} onClick={() => setUserRole(user.id, r)}
+                                disabled={actingOn === user.id || user.platformRole === r}
+                                className="block w-full text-left px-3 py-1.5 text-[12px] text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+                                {r}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Last active */}
+                    <td className="px-4 py-3 text-[12px] text-slate-400 whitespace-nowrap">
+                      {getLastActive(user)}
+                    </td>
+
+                    {/* Joined */}
+                    <td className="px-4 py-3 text-[12px] text-slate-400 whitespace-nowrap">
+                      {new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-4 py-3">
+                      <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${user.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                        {user.isActive ? 'Active' : 'Deactivated'}
+                      </span>
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => toggleActive(user)}
+                        disabled={actingOn === user.id}
+                        title={user.isActive ? 'Deactivate' : 'Activate'}
+                        className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11.5px] font-medium text-slate-500 hover:border-slate-400 disabled:opacity-40 transition-colors"
+                      >
+                        {user.isActive
+                          ? <><UserX className="h-3 w-3 text-red-400" /> Deactivate</>
+                          : <><UserCheck className="h-3 w-3 text-emerald-500" /> Activate</>
+                        }
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
-      {initialData.pages > 1 && (
-        <div className="flex items-center justify-center gap-1.5 pb-4">
-          <button disabled={page <= 1} onClick={() => navigate({ page: String(page - 1) })}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs disabled:opacity-40">
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </button>
-          {buildPageRange(page, initialData.pages).map((p, i) =>
-            p === '…' ? <span key={i} className="w-8 text-center text-xs text-gray-400">…</span> :
-            <button key={p} onClick={() => navigate({ page: String(p) })}
-              className="h-8 w-8 flex items-center justify-center rounded-lg border text-xs font-semibold"
-              style={p === page ? { background: '#0B1F14', color: '#fff', borderColor: '#0B1F14' } : { background: '#fff', color: '#374151', borderColor: '#e5e7eb' }}>
-              {p}
+      {/* Pagination */}
+      {pages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-[12px] text-slate-400">Page {page} of {pages}</p>
+          <div className="flex gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="h-8 px-3 rounded-lg border border-slate-200 text-[12px] text-slate-600 hover:border-slate-400 disabled:opacity-40">
+              Previous
             </button>
-          )}
-          <button disabled={page >= initialData.pages} onClick={() => navigate({ page: String(page + 1) })}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs disabled:opacity-40">
-            <ChevronRight className="h-3.5 w-3.5" />
-          </button>
+            <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages}
+              className="h-8 px-3 rounded-lg border border-slate-200 text-[12px] text-slate-600 hover:border-slate-400 disabled:opacity-40">
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>
