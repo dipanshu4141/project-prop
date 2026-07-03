@@ -1,11 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { Search, Shield, UserX, UserCheck, ChevronDown, X } from 'lucide-react';
-
-interface WorkspaceUsageEvent {
-  occurredAt: string;
-}
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Search, UserX, UserCheck, ChevronDown, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface Workspace {
   id:           string;
@@ -47,15 +43,12 @@ function timeAgo(iso: string | null): string {
   return `${days}d ago`;
 }
 
-function getLastActive(user: User): string {
+function getLastActiveDate(user: User): string {
   const dates = user.memberships
-    .map(m => (m.workspace as any).lastActiveAt)
-    .filter(Boolean);
-  if (!dates.length) return '—';
-  const latest = dates.sort((a: string, b: string) =>
-    new Date(b).getTime() - new Date(a).getTime()
-  )[0];
-  return timeAgo(latest);
+    .map(m => m.workspace?.lastActiveAt)
+    .filter(Boolean) as string[];
+  if (!dates.length) return '';
+  return dates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
 }
 
 function roleBadge(role: string) {
@@ -75,6 +68,9 @@ function planBadge(plan: string) {
   return map[plan] ?? 'bg-slate-100 text-slate-500';
 }
 
+type SortCol = 'lastActive' | 'joined' | null;
+type SortDir = 'asc' | 'desc';
+
 export default function AdminUsersClient() {
   const [users,    setUsers]    = useState<User[]>([]);
   const [total,    setTotal]    = useState(0);
@@ -85,6 +81,8 @@ export default function AdminUsersClient() {
   const [active,   setActive]   = useState('');
   const [loading,  setLoading]  = useState(true);
   const [actingOn, setActingOn] = useState<string | null>(null);
+  const [sortBy,   setSortBy]   = useState<SortCol>(null);
+  const [sortDir,  setSortDir]  = useState<SortDir>('desc');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,6 +101,38 @@ export default function AdminUsersClient() {
   }, [page, q, role, active]);
 
   useEffect(() => { load(); }, [load]);
+
+  function toggleSort(col: SortCol) {
+    if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortDir('desc'); }
+  }
+
+  const sortedUsers = useMemo(() => {
+    if (!sortBy) return users;
+    return [...users].sort((a, b) => {
+      if (sortBy === 'lastActive') {
+        const aDate = getLastActiveDate(a);
+        const bDate = getLastActiveDate(b);
+        if (!aDate && !bDate) return 0;
+        if (!aDate) return 1;
+        if (!bDate) return -1;
+        const diff = new Date(bDate).getTime() - new Date(aDate).getTime();
+        return sortDir === 'desc' ? diff : -diff;
+      }
+      if (sortBy === 'joined') {
+        const diff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return sortDir === 'desc' ? diff : -diff;
+      }
+      return 0;
+    });
+  }, [users, sortBy, sortDir]);
+
+  function SortIcon({ col }: { col: SortCol }) {
+    if (sortBy !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortDir === 'desc'
+      ? <ArrowDown className="h-3 w-3 ml-1 text-slate-600" />
+      : <ArrowUp   className="h-3 w-3 ml-1 text-slate-600" />;
+  }
 
   async function setUserRole(userId: string, newRole: string) {
     setActingOn(userId);
@@ -175,8 +205,18 @@ export default function AdminUsersClient() {
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Workspace</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Plan</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Platform role</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Last active</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Joined</th>
+                <th
+                  onClick={() => toggleSort('lastActive')}
+                  className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400 cursor-pointer hover:text-slate-600 select-none"
+                >
+                  <span className="flex items-center">Last active <SortIcon col="lastActive" /></span>
+                </th>
+                <th
+                  onClick={() => toggleSort('joined')}
+                  className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400 cursor-pointer hover:text-slate-600 select-none"
+                >
+                  <span className="flex items-center">Joined <SortIcon col="joined" /></span>
+                </th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Status</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -184,14 +224,13 @@ export default function AdminUsersClient() {
             <tbody className="divide-y divide-slate-50">
               {loading ? (
                 <tr><td colSpan={8} className="px-4 py-10 text-center text-[13px] text-slate-400">Loading…</td></tr>
-              ) : users.length === 0 ? (
+              ) : sortedUsers.length === 0 ? (
                 <tr><td colSpan={8} className="px-4 py-10 text-center text-[13px] text-slate-400">No users found</td></tr>
-              ) : users.map(user => {
+              ) : sortedUsers.map(user => {
                 const primary = user.memberships?.[0];
                 return (
                   <tr key={user.id} className={`hover:bg-slate-50 transition-colors ${!user.isActive ? 'opacity-50' : ''}`}>
 
-                    {/* User */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600">
@@ -205,7 +244,6 @@ export default function AdminUsersClient() {
                       </div>
                     </td>
 
-                    {/* Workspace */}
                     <td className="px-4 py-3">
                       {primary ? (
                         <div>
@@ -215,7 +253,6 @@ export default function AdminUsersClient() {
                       ) : <span className="text-slate-300">—</span>}
                     </td>
 
-                    {/* Plan */}
                     <td className="px-4 py-3">
                       {primary?.workspace.plan ? (
                         <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${planBadge(primary.workspace.plan)}`}>
@@ -224,7 +261,6 @@ export default function AdminUsersClient() {
                       ) : <span className="text-slate-300">—</span>}
                     </td>
 
-                    {/* Platform role */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${roleBadge(user.platformRole)}`}>
@@ -247,29 +283,24 @@ export default function AdminUsersClient() {
                       </div>
                     </td>
 
-                    {/* Last active */}
                     <td className="px-4 py-3 text-[12px] text-slate-400 whitespace-nowrap">
-                      {getLastActive(user)}
+                      {timeAgo(getLastActiveDate(user) || null)}
                     </td>
 
-                    {/* Joined */}
                     <td className="px-4 py-3 text-[12px] text-slate-400 whitespace-nowrap">
                       {new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
                     </td>
 
-                    {/* Status */}
                     <td className="px-4 py-3">
                       <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${user.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
                         {user.isActive ? 'Active' : 'Deactivated'}
                       </span>
                     </td>
 
-                    {/* Actions */}
                     <td className="px-4 py-3">
                       <button
                         onClick={() => toggleActive(user)}
                         disabled={actingOn === user.id}
-                        title={user.isActive ? 'Deactivate' : 'Activate'}
                         className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11.5px] font-medium text-slate-500 hover:border-slate-400 disabled:opacity-40 transition-colors"
                       >
                         {user.isActive
@@ -286,7 +317,6 @@ export default function AdminUsersClient() {
         </div>
       </div>
 
-      {/* Pagination */}
       {pages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-[12px] text-slate-400">Page {page} of {pages}</p>
