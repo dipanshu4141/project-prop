@@ -1,4 +1,5 @@
 import { AuthProvider } from '@/context/AuthContext';
+import { Analytics } from "@vercel/analytics/next"
 import { Providers } from "./providers";
 import "./globals.css";
 import type { Metadata } from "next";
@@ -60,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </AuthProvider>
           </Providers>
         </PwaInstallProvider>
+        <Analytics />
       </body>
     </html>
   );
