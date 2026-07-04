@@ -51,6 +51,8 @@ async function compressIfImage(file: File, compressed: boolean): Promise<File> {
       useWebWorker:     true,
       fileType:         "image/webp",
     });
+    // Only use compressed version if actually smaller
+    if (blob.size >= file.size) return file;
     return new File([blob], file.name.replace(/\.[^.]+$/, ".webp"), {
       type: "image/webp",
     });
@@ -58,7 +60,6 @@ async function compressIfImage(file: File, compressed: boolean): Promise<File> {
     return file;
   }
 }
-
 /* ─── Helpers ────────────────────────────────────────────── */
 
 function formatBytes(bytes: number): string {
