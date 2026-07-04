@@ -34,9 +34,7 @@ async function proxy(req: NextRequest, context: Context, method: string) {
     const rawHeaders = res.headers.getSetCookie?.() ?? [];
     for (const raw of rawHeaders) {
       // Rewrite: remove domain, change sameSite to lax, keep httpOnly+secure
-      const rewritten = raw
-        .replace(/;\s*domain=[^;]+/gi, '')
-        .replace(/;\s*samesite=none/gi, '; SameSite=Lax');
+      const rewritten = raw.replace(/;\s*domain=[^;]+/gi, '');
       nextRes.headers.append('Set-Cookie', rewritten);
     }
 
