@@ -1,151 +1,104 @@
 import {
-  Controller,
-  Post,
-  Body,
-  Req,
-  Res,
-  UseGuards,
-  HttpCode,
-  HttpStatus,
-  Get,
-  Query,
-  Redirect,
+  Controller, Post, Get, Body, Req, Res,
+  UseGuards, HttpCode, HttpStatus, UnauthorizedException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
-import { JwtRefreshGuard, JwtAuthGuard } from './guards/auth.guards';
+import { JwtAuthGuard } from './guards/auth.guards';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtPayload } from './jwt-payload.interface';
-
 import { AuthGuard } from '@nestjs/passport';
 import { SkipBilling } from '../modules/billing/skip-billing.decorator';
-
-const IS_PROD = process.env.NODE_ENV === 'production';
-
-const BASE_COOKIE = {
-  httpOnly: true,
-  secure:   IS_PROD,
-  sameSite: (IS_PROD ? 'none' : 'lax') as 'none' | 'lax',
-  domain:   IS_PROD ? '.growcliento.com' : undefined,
-  path:     '/',
-};
-
-function clearCookies(res: Response) {
-  const cookieNames = ['access_token', 'refresh_token'];
-  const variants = [
-    { path: '/', domain: '.growcliento.com', sameSite: 'none' as const, secure: true },
-    { path: '/', sameSite: 'lax' as const, secure: false },
-  ];
-  for (const name of cookieNames) {
-    for (const opts of variants) {
-      res.clearCookie(name, opts);
-    }
-  }
-}
-
-const ACCESS_COOKIE  = { ...BASE_COOKIE, maxAge: 15 * 60 * 1000 };
-const REFRESH_COOKIE = { ...BASE_COOKIE, maxAge: 30 * 24 * 60 * 60 * 1000 };
-
-function setCookies(res: Response, accessToken: string, refreshToken: string) {
-  res.cookie('access_token',  accessToken,  ACCESS_COOKIE);
-  res.cookie('refresh_token', refreshToken, REFRESH_COOKIE);
-}
 
 @SkipBilling()
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
-  /**
-   * POST /auth/register
-   * Creates User + Workspace + WorkspaceMember(OWNER).
-   * Sets httpOnly cookies — client receives user/workspace info only.
-   */
   @Post('register')
-  async register(
-    @Body() dto: RegisterDto,
-    @Req()  req: Request,
-    @Res()  res: Response,
-  ) {
-    const result = await this.authService.register(dto, req);
-    setCookies(res, result.accessToken, result.refreshToken);
-    return res.json({ user: result.user, workspace: result.workspace });
+  async register(@Body() dto: RegisterDto, @Req() req: Request) {
+    return this.authService.register(dto, req);
   }
 
-  /**
-   * POST /auth/login
-   * Sets httpOnly cookies — client receives user/workspace info only.
-   */
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(
-    @Body() dto: LoginDto,
-    @Req()  req: Request,
-    @Res()  res: Response,
-  ) {
-    const result = await this.authService.login(dto, req);
-    setCookies(res, result.accessToken, result.refreshToken);
-    return res.json({ user: result.user, workspace: result.workspace });
+  async login(@Body() dto: LoginDto, @Req() req: Request) {
+    return this.authService.login(dto, req);
   }
 
-  /**
-   * POST /auth/refresh
-   * Rotates both cookies silently — called automatically by the
-   * frontend API client on 401, invisible to the user.
-   */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtRefreshGuard)
-  async refresh(
-    @Req() req: Request & { user: { userId: string; sessionId: string } },
-    @Res() res: Response,
-  ) {
-    const result = await this.authService.refresh(req.user.userId, req.user.sessionId, req);
-    setCookies(res, result.accessToken, result.refreshToken);
-    return res.json({ user: result.user, workspace: result.workspace });
+  async refresh(@Req() req: Request & { cookies: any }) {
+    const refreshToken = req.cookies?.refresh_token;
+    if (!refreshToken) throw new UnauthorizedException('No refresh token');
+    return this.authService.refresh(refreshToken, req);
   }
 
-  /**
-   * POST /auth/logout
-   * Revokes the session in DB and clears both cookies.
-   */
   @Post('logout')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async logout(@Res() res: Response) {
-    clearCookies(res);
-    return res.status(HttpStatus.NO_CONTENT).send();
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async logout(
+    @CurrentUser() user: JwtPayload,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.authService.logout(user.sub);
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieOpts = {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+      path: '/',
+    };
+    res.clearCookie('access_token', cookieOpts);
+    res.clearCookie('refresh_token', cookieOpts);
+    return { message: 'Logged out successfully' };
   }
 
-  /**
-   * GET /auth/me
-   * Returns current user from JWT — used by AuthContext on page load
-   * to restore session without a password prompt.
-   */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@CurrentUser() user: JwtPayload) {
+  async me(@CurrentUser() user: JwtPayload, @Req() req: Request) {
     return user;
   }
 
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body() body: { token: string }) {
+    return this.authService.verifyEmail(body.token);
+  }
+
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async resendVerification(@CurrentUser() user: JwtPayload) {
+    return this.authService.sendVerificationEmail(user.sub);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() body: { email: string }) {
+    return this.authService.forgotPassword(body.email);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() body: { token: string; password: string }) {
+    return this.authService.resetPassword(body.token, body.password);
+  }
+
   @Post('register-member')
+  @HttpCode(HttpStatus.OK)
   async registerMember(
-    @Body() dto: { name: string; email: string; password: string; inviteToken: string },
-    @Req()  req: Request,
-    @Res()  res: Response,
+    @Body() body: { inviteToken: string; name: string; email: string; password: string; phone?: string },
+    @Req() req: Request,
   ) {
-    const result = await this.authService.registerViaInvite(dto, req);
-    setCookies(res, result.accessToken, result.refreshToken);
-    return res.json({ user: result.user, workspace: result.workspace });
+    return this.authService.registerViaInvite(body, req);
   }
 
   @Post('update-phone')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async updatePhone(
-    @CurrentUser() user: JwtPayload,
-    @Body() body: { phone: string },
-  ) {
+  async updatePhone(@CurrentUser() user: JwtPayload, @Body() body: { phone: string }) {
     return this.authService.updatePhone(user.sub, body.phone);
   }
 
@@ -153,15 +106,10 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   googleLogin() {}
 
-  // Google OAuth — callback
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleCallback(
-    @Req() req: Request & { user: any },
-    @Res() res: Response,
-  ) {
+  async googleCallback(@Req() req: Request & { user: any }, @Res() res: Response) {
     const result = await this.authService.googleAuth(req.user, req);
-
     const redirectBase = process.env.FRONTEND_URL;
     const params = new URLSearchParams({
       access_token:  result.accessToken,
@@ -169,43 +117,6 @@ export class AuthController {
       plan_selected: String(result.planSelected ?? false),
       is_new_user:   String(result.isNewUser ?? false),
     });
-
     res.redirect(`${redirectBase}/api/auth/google/callback?${params.toString()}`);
   }
-
-  // Verify email
-  @Get('verify-email')
-  @HttpCode(HttpStatus.OK)
-  async verifyEmail(@Query('token') token: string, @Res() res: Response) {
-    await this.authService.verifyEmail(token);
-    res.redirect(`${process.env.FRONTEND_URL}/login?verified=1`);
-  }
-
-  // Forgot password
-  @Post('forgot-password')
-  @HttpCode(HttpStatus.OK)
-  async forgotPassword(@Body() body: { email: string }) {
-    await this.authService.forgotPassword(body.email);
-    return { message: 'If that email exists, a reset link has been sent.' };
-  }
-
-  // Reset password
-  @Post('reset-password')
-  @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() body: { token: string; password: string }) {
-    await this.authService.resetPassword(body.token, body.password);
-    return { message: 'Password reset successfully.' };
-  }
-
-  // Resend verification email
-  @Post('resend-verification')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
-  async resendVerification(@CurrentUser() user: JwtPayload) {
-    await this.authService.sendVerificationEmail(user.sub);
-    return { message: 'Verification email sent.' };
-  }
-
- 
-
 }

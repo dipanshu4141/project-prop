@@ -20,7 +20,6 @@ const BILLING_EXEMPT = [
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow Next.js internals
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
@@ -29,7 +28,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Auth check
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   if (isPublic) return NextResponse.next();
 
@@ -40,12 +38,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Billing check
   const isExempt = BILLING_EXEMPT.some((p) => pathname.startsWith(p));
   if (!isExempt) {
     try {
       const res = await fetch(`${process.env.BACKEND_URL}/api/billing/status`, {
         headers: { Cookie: `refresh_token=${token}` },
+        signal: AbortSignal.timeout(2000),
       });
       if (res.ok) {
         const data = await res.json();

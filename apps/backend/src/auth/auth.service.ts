@@ -300,33 +300,41 @@ export class AuthService {
   // REFRESH
   // ─────────────────────────────────────────────────────────────
 
-  async refresh(userId: string, sessionId: string, req?: Request): Promise<TokenResponseDto> {
+  async refresh(refreshToken: string, req?: Request): Promise<TokenResponseDto> {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(refreshToken, { secret: JWT_REFRESH_SECRET });
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const session = await this.prisma.userSession.findUnique({
+      where: { id: payload.sessionId },
+    });
+    if (!session || session.revokedAt) throw new UnauthorizedException('Session expired');
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+    });
+    if (!user || !user.isActive) throw new UnauthorizedException('User not found');
+
     const member = await this.prisma.workspaceMember.findFirst({
-          where: { userId }, orderBy: { joinedAt: 'asc' }, include: { workspace: true, user: true },
-        });
+      where:   { userId: user.id },
+      orderBy: { joinedAt: 'asc' },
+      include: { workspace: true },
+    });
+    if (!member) throw new UnauthorizedException('No workspace');
 
-
-    if (!member) throw new UnauthorizedException();
-
-    const payload: JwtPayload = {
-      sub:          userId,
-      email:        member.user.email,
+    const jwtPayload: JwtPayload = {
+      sub:          user.id,
+      email:        user.email,
       workspaceId:  member.workspaceId,
       role:         member.role,
-      platformRole: member.user.platformRole,
+      platformRole: user.platformRole,
       planSelected: member.workspace.planSelected ?? false,
     };
 
-    // Issue new tokens first, then revoke old session
-    const result = await this.issueTokens(payload, member.workspace, member.user, member.role, req);
-    
-    // Only revoke after new session is created successfully
-    await this.prisma.userSession.update({
-      where: { id: sessionId },
-      data:  { revokedAt: new Date() },
-    });
-
-    return result;
+    return this.issueTokens(jwtPayload, member.workspace, user, member.role, req);
   }
 
   // ─────────────────────────────────────────────────────────────

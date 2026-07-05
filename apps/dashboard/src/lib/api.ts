@@ -1,15 +1,3 @@
-/**
- * apps/dashboard/src/lib/api.ts
- *
- * Thin fetch wrapper that:
- *  - Always sends cookies (credentials: 'include')
- *  - Auth routes (/auth/*) always go through Next.js proxy for cookie handling
- *  - Data routes go direct to Railway via NEXT_PUBLIC_API_URL for speed
- *  - On 401, silently calls /auth/refresh and retries once
- *  - On second 401, redirects to /login
- */
-
-// Direct to Railway — fast, for all data calls
 const API_BASE  = (process.env.NEXT_PUBLIC_API_URL ?? '') + '/api';
 const AUTH_BASE = '/api';
 
@@ -59,10 +47,8 @@ export async function api<T = any>(path: string, options: RequestInit = {}): Pro
     isRefreshing = false;
     drainQueue();
     if (refreshed) return api<T>(path, options);
-    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-      window.location.href = '/login';
-    }
-    throw new Error('Session expired');
+    // Don't redirect — throw so caller can handle gracefully
+    throw new Error('AUTH_EXPIRED');
   }
 
   if (res.status === 403) {
