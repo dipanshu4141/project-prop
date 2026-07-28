@@ -3,6 +3,7 @@ import {
   ConflictException,
   UnauthorizedException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
@@ -114,6 +115,29 @@ export class AuthService {
       }
       throw err;
     }
+  }
+
+  async updateProfile(userId: string, data: { name?: string }): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data:  { name: data.name },
+    });
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    if (user.passwordHash) {
+      const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!valid) throw new BadRequestException('Current password is incorrect');
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data:  { passwordHash: hash },
+    });
   }
 
   async updatePhone(userId: string, phone: string): Promise<void> {

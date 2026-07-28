@@ -821,7 +821,6 @@
 
 
 // apps/dashboard/src/app/v2/clients/[id]/page.tsx
-
 import { serverGet }              from "@/lib/serverApi";
 import { notFound }               from "next/navigation";
 import Link                       from "next/link";
@@ -837,11 +836,9 @@ import { ClientPropertiesTabs }  from "@/components/v2/clients/ClientPropertiesT
 import { ShareButton }           from "@/components/v2/clients/ShareButton";
 import { ClientFollowUpSection } from '@/components/v2/clients/ClientFollowUpSection';
 import { ClientStartDealButton } from '@/components/v2/clients/ClientStartDealButton';
+import { ClientSectionTabs }     from '@/components/v2/clients/ClientSectionTabs';
 
-/* ------------------------------------------------------------------ */
-/* TYPES                                                               */
-/* ------------------------------------------------------------------ */
-
+/* ── Types ── */
 type ClientEvent = {
   id:        string;
   type:      string;
@@ -867,10 +864,7 @@ type ClientResponse = {
   events:     ClientEvent[];
 };
 
-/* ------------------------------------------------------------------ */
-/* DATA                                                                */
-/* ------------------------------------------------------------------ */
-
+/* ── Data ── */
 async function getClient(id: string): Promise<ClientResponse | null> {
   try { return await serverGet<ClientResponse>(`/clients/${id}`); }
   catch { return null; }
@@ -881,10 +875,7 @@ async function getClientShortlists(id: string) {
   catch { return []; }
 }
 
-/* ------------------------------------------------------------------ */
-/* PAGE                                                                */
-/* ------------------------------------------------------------------ */
-
+/* ── Page ── */
 export default async function ClientPage({
   params,
 }: {
@@ -927,37 +918,29 @@ export default async function ClientPage({
     .sort((a: Date, b: Date) => b.getTime() - a.getTime())[0] ?? null;
 
   return (
-    <div className="min-h-screen bg-[#F7F5F0] pt-14 lg:pt-0">
+    <div className="min-h-screen bg-[#F7F5F0] pt-1 lg:pt-0">
 
-      {/* ── STICKY TOP NAV ── */}
-      <div className="sticky top-14 lg:top-0 z-20 flex items-center gap-2 border-b border-slate-100 bg-white px-4 sm:px-6 py-2.5">
-        <Link
-          href="/v2/leads"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors flex-shrink-0"
-        >
+      {/* ── FIXED TOP NAV ── */}
+      <div className="fixed top-14 lg:top-0 left-0 right-0 z-20 flex items-center gap-2 border-b border-slate-100 bg-white px-4 sm:px-6 py-2.5 lg:static lg:border-0 lg:bg-transparent lg:px-6 lg:pt-6 lg:pb-4">
+        <Link href="/v2/leads"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors flex-shrink-0">
           <ChevronLeft className="h-4 w-4" />
         </Link>
 
-        <p className="flex-1 text-center text-[13px] font-semibold text-slate-800 truncate">
-          {client.name || "Unnamed Client"}
+        <p className="flex-1 text-center text-[13px] font-semibold text-slate-800 truncate lg:text-left lg:text-[17px] lg:font-bold lg:text-[#0B1F14]">
+          {/* {client.name || "Unnamed Client"} */}Client Details
         </p>
 
         <div className="flex items-center gap-1.5">
-          <a
-            href={`tel:${primaryPhone}`}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-emerald-300 hover:text-emerald-700 transition-all"
-          >
+          {/* <a href={`tel:${primaryPhone}`}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-emerald-300 hover:text-emerald-700 transition-all">
             <Phone className="h-3.5 w-3.5" />
           </a>
-          <a
-            href={whatsappHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-8 items-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-xs font-semibold text-white hover:bg-[#1fb855] transition-colors"
-          >
+          <a href={whatsappHref} target="_blank" rel="noopener noreferrer"
+            className="flex h-8 items-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-xs font-semibold text-white hover:bg-[#1fb855] transition-colors">
             <MessageSquare className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">WhatsApp</span>
-          </a>
+          </a> */}
           <ShareButton
             clientId={client.id}
             clientName={client.name || "Unnamed Client"}
@@ -966,18 +949,15 @@ export default async function ClientPage({
         </div>
       </div>
 
-      {/* ── CONTENT ── */}
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 py-4 space-y-3">
+      {/* ── CONTENT — adds top padding to clear fixed nav on mobile ── */}
+      <div className="mx-auto max-w-2xl px-4 sm:px-6 pt-16 lg:pt-0 pb-24 lg:pb-8 space-y-3">
 
         {/* ── PROFILE CARD ── */}
-        <div className="rounded-2xl bg-white border border-slate-100 shadow-sm px-4 py-4">
-          <div className="flex items-center gap-3">
-            {/* Avatar */}
+        <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] px-4 py-4">
+          <div className="flex items-center gap-3 mb-3">
             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-sky-100 text-[14px] font-bold text-sky-700">
               {initials}
             </div>
-
-            {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-[16px] font-bold text-slate-900 leading-tight truncate">
@@ -991,10 +971,8 @@ export default async function ClientPage({
                   {client.status}
                 </span>
               </div>
-              <a
-                href={`tel:${primaryPhone}`}
-                className="flex items-center gap-1 text-[12px] text-slate-500 hover:text-emerald-700 transition-colors w-fit mt-0.5"
-              >
+              <a href={`tel:${primaryPhone}`}
+                className="flex items-center gap-1 text-[12px] text-slate-500 hover:text-emerald-700 transition-colors w-fit mt-0.5">
                 <Phone className="h-3 w-3 flex-shrink-0" />
                 {primaryPhone || "—"}
               </a>
@@ -1006,8 +984,8 @@ export default async function ClientPage({
             </div>
           </div>
 
-          {/* ── STATS ROW ── */}
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-2">
             {[
               { label: "Properties", value: client.properties.length, icon: Building2 },
               { label: "Activities",  value: client.events.length,     icon: Activity  },
@@ -1022,113 +1000,103 @@ export default async function ClientPage({
         </div>
 
         {/* ── QUICK ACTIONS ── */}
-        <div className="rounded-2xl bg-white border border-slate-100 shadow-sm px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-3">Quick actions</p>
-
-          {/* Primary actions row */}
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            <a
-              href={whatsappHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-[#1fb855] transition-colors"
-            >
+        <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] px-4 py-4 space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Quick actions</p>
+          <div className="grid grid-cols-2 gap-2">
+            <a href={whatsappHref} target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-[#1fb855] transition-colors">
               <MessageSquare className="h-4 w-4 flex-shrink-0" />
               WhatsApp
             </a>
-            <a
-              href={`tel:${primaryPhone}`}
-              className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-            >
+            <a href={`tel:${primaryPhone}`}
+              className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition-colors">
               <Phone className="h-4 w-4 flex-shrink-0" />
               Call
             </a>
           </div>
 
-          {/* Send property via WhatsApp (full width) */}
           <ClientWhatsAppAction
             clientId={client.id}
-            defaultClientPropertyId={
-              client.properties.length === 1 ? client.properties[0].id : null
-            }
+            defaultClientPropertyId={client.properties.length === 1 ? client.properties[0].id : null}
             fullWidth
           />
 
-          {/* Follow-up date (full width) */}
-          <div className="mt-2">
-            <ClientFollowUpSection
-              clientId={client.id}
-              initialFollowUp={
-                client.properties
-                  .map((p: any) => p.followUpAt)
-                  .filter(Boolean)
-                  .sort()[0] ?? null
-              }
-            />
-          </div>
+          <ClientFollowUpSection
+            clientId={client.id}
+            initialFollowUp={
+              client.properties.map((p: any) => p.followUpAt).filter(Boolean).sort()[0] ?? null
+            }
+          />
 
           {nextFollowUp && (
-            <p className="mt-2 text-[11px] text-amber-700 flex items-center gap-1">
+            <p className="text-[11px] text-amber-700 flex items-center gap-1 pt-1">
               <span>📅</span>
               Next follow-up: {nextFollowUp.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
             </p>
           )}
         </div>
 
-        {/* ── PROPERTIES SHARED ── */}
-        <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100">
-            <div>
-              <p className="text-[13px] font-semibold text-slate-800">Properties shared</p>
-              {lastShared && (
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  Last shared {lastShared.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                </p>
-              )}
+        {/* ── TABBED SECTIONS — Properties / Notes / Activity ── */}
+        <ClientSectionTabs
+          propertiesContent={
+            <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100">
+                <div>
+                  <p className="text-[13px] font-semibold text-slate-800">Properties shared</p>
+                  {lastShared && (
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Last shared {lastShared.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <ClientStartDealButton
+                    clientId={client.id}
+                    clientName={client.name ?? null}
+                    interestedProperties={client.properties.filter((p: any) => p.clientStatus === 'INTERESTED')}
+                  />
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600">
+                    {client.properties.length}
+                  </span>
+                </div>
+              </div>
+              <div className="px-4 py-4">
+                <ClientPropertiesTabs clientProperties={client.properties} />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <ClientStartDealButton
-                clientId={client.id}
-                clientName={client.name ?? null}
-                interestedProperties={client.properties.filter((p: any) => p.clientStatus === 'INTERESTED')}
-              />
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600">
-                {client.properties.length}
-              </span>
+          }
+          notesContent={
+            <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100">
+                <p className="text-[13px] font-semibold text-slate-800">Notes</p>
+                {notes.length > 0 && (
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600">
+                    {notes.length}
+                  </span>
+                )}
+              </div>
+              <div className="px-4 py-4">
+                <ClientNotes clientId={client.id} notes={notes} />
+              </div>
             </div>
-          </div>
-          <div className="px-4 py-4">
-            <ClientPropertiesTabs clientProperties={client.properties} />
-          </div>
-        </div>
-
-        {/* ── NOTES ── */}
-        <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100">
-            <p className="text-[13px] font-semibold text-slate-800">Notes</p>
-            {notes.length > 0 && (
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600">
-                {notes.length}
-              </span>
-            )}
-          </div>
-          <div className="px-4 py-4">
-            <ClientNotes clientId={client.id} notes={notes} />
-          </div>
-        </div>
-
-        {/* ── ACTIVITY ── */}
-        <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100">
-            <p className="text-[13px] font-semibold text-slate-800">Activity</p>
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600">
-              {client.events.length}
-            </span>
-          </div>
-          <div className="px-4 py-4">
-            <ClientTimeline events={client.events} />
-          </div>
-        </div>
+          }
+          activityContent={
+            <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100">
+                <p className="text-[13px] font-semibold text-slate-800">Activity</p>
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600">
+                  {client.events.length}
+                </span>
+              </div>
+              <div className="px-4 py-4">
+                <ClientTimeline events={client.events} />
+              </div>
+            </div>
+          }
+          propertiesCount={client.properties.length}
+          notesCount={notes.length}
+          activityCount={client.events.length}
+        />
 
       </div>
     </div>

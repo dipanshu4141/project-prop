@@ -1,17 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bookmark } from 'lucide-react';
 import { SaveToCollectionModal } from './SaveToCollectionModal';
 
 type Props = {
   listingId: string;
-  saved?:    boolean; // optional initial state
+  saved?:    boolean;
 };
 
 export function SaveToCollectionButton({ listingId, saved = false }: Props) {
   const [open,    setOpen]    = useState(false);
   const [isSaved, setIsSaved] = useState(saved);
+
+  // Sync when parent prop changes (e.g. after page refresh loads fresh data)
+  useEffect(() => {
+    setIsSaved(saved);
+  }, [saved]);
 
   return (
     <>

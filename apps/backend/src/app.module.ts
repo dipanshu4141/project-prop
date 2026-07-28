@@ -33,6 +33,7 @@ import { BillingGuard } from './modules/billing/billing.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { ActivityMiddleware } from './middleware/activity.middleware';
+import { SettingsModule } from './modules/settings/settings.module';
 
 
 
@@ -55,6 +56,7 @@ import { ActivityMiddleware } from './middleware/activity.middleware';
     ClientsModule,
     TeamModule,
     MediaModule,
+    SettingsModule,
     // WhatsappModule,
     PublicModule,
     ListingsModule, 

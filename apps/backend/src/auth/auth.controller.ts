@@ -1,6 +1,7 @@
 import {
   Controller, Post, Get, Body, Req, Res,
   UseGuards, HttpCode, HttpStatus, UnauthorizedException,
+  Patch,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -145,5 +146,25 @@ export class AuthController {
       is_new_user:   String(result.isNewUser ?? false),
     });
     res.redirect(`${redirectBase}/api/auth/google/callback?${params.toString()}`);
+  }
+
+  @Patch('me')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { name?: string },
+  ) {
+    return this.authService.updateProfile(user.sub, body);
+  }
+
+  @Patch('password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { currentPassword: string; newPassword: string },
+  ) {
+    return this.authService.changePassword(user.sub, body.currentPassword, body.newPassword);
   }
 }

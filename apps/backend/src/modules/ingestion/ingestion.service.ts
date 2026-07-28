@@ -597,22 +597,14 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
       where: { workspaceId, active: true },
       select: { groupId: true },
     });
-    const subscribedIds = subscribed.map((s) => s.groupId);
+    const subscribedIds = subscribed.map(s => s.groupId);
     const now = new Date();
 
-    return this.prisma.ingestionGroup.findMany({
+    const groups = await this.prisma.ingestionGroup.findMany({
       where: {
         id: { notIn: subscribedIds },
         OR: [
-          // Public groups — grace period expired or never set
-          { 
-            isPrivate: false,
-            OR: [
-              { claimExpiresAt: null },
-              { claimExpiresAt: { lt: now } }, // grace period over
-            ]
-          },
-          // Own private groups
+          { isPrivate: false, OR: [{ claimExpiresAt: null }, { claimExpiresAt: { lt: now } }] },
           { isPrivate: true, workspaceId },
         ],
       },
@@ -620,8 +612,26 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
         phone: { select: { phone: true, displayName: true } },
         _count: { select: { subscriptions: { where: { active: true } } } },
       },
-      orderBy: { groupName: 'asc' },
+      orderBy: { subscriptions: { _count: 'desc' } },
     });
+
+    // Last message per group name
+    const lastMessages = await this.prisma.message.findMany({
+      where: { groupName: { in: groups.map(g => g.groupName) } },
+      orderBy: { receivedAt: 'desc' },
+      distinct: ['groupName'],
+      select: { groupName: true, receivedAt: true },
+    });
+    const lastMsgMap = Object.fromEntries(lastMessages.map(m => [m.groupName, m.receivedAt]));
+
+    return groups.map(g => ({
+      id:           g.id,
+      groupName:    g.groupName,
+      groupJid:     g.groupJid,
+      phone:        g.phone,
+      lastListingAt: lastMsgMap[g.groupName] ?? null,
+      _count:       { subscriptions: g._count.subscriptions },
+    }));
   }
 
   async getSubscriptions(workspaceId: string) {

@@ -1,165 +1,195 @@
-import { PageContainer } from "@/components/v2/layout/PageContainer";
-import { PropertyActivityTimeline } from "@/components/v2/property/PropertyActivityTimeline";
-import { PropertyDetails } from "@/components/v2/property/PropertyDetails";
-import { WhatsAppMessageCard } from "@/components/v2/property/WhatsAppMessageCard";
-import { PropertyLeadsDropdown } from "@/components/v2/property/PropertyLeadsDropdown";
-import { DeletePropertyButton } from "@/components/v2/property/DeletePropertyButton";
-import { PropertyStatusSelect } from "@/components/v2/property/PropertyStatusSelect";
-// import { StartDealButton } from "@/components/v2/deals/StartDealButton";
 import { serverGet } from "@/lib/serverApi";
-import { ChevronLeft } from "lucide-react";
+import { notFound } from "next/navigation";
 import Link from "next/link";
-import { BackButton } from "@/components/v2/navigation/BackButton";
-import { MediaGallery } from "@/components/v2/property/MediaGallery";
-/* ------------------------------------------------------------------ */
-/* DATA FETCHERS                                                        */
-/* ------------------------------------------------------------------ */
+import { ChevronLeft, Trash2 } from "lucide-react";
 
-async function getProperty(id: string) {
-  return serverGet<any>(`/properties/${id}`);
+import { PropertyDetails } from "@/components/v2/property/PropertyDetails";
+import { MediaGallery }    from "@/components/v2/property/MediaGallery";
+import { PropertySectionTabs } from "@/components/v2/property/PropertySectionTabs";
+import { DeletePropertyButton } from "@/components/v2/property/DeletePropertyButton";
+import { MessageModal } from "@/components/v2/property/MessageModal";
+
+/* ── Types ── */
+type Property = {
+  id:                  string;
+  refCode:             string | null;
+  listingType:         string;
+  propertyCategory:    string | null;
+  propertySubType:     string | null;
+  bhk:                 string | null;
+  areaSqft:            number | null;
+  furnishing:          string | null;
+  floor:               number | null;
+  totalFloors:         number | null;
+  status:              string;
+  price:               number | null;
+  deposit:             number | null;
+  negotiable:          boolean | null;
+  urgencyLevel:        string | null;
+  availableFrom:       string | null;
+  country:             string | null;
+  city:                string | null;
+  area:                string | null;
+  location:            string | null;
+  building:            string | null;
+  tenantTypes:         string[];
+  tenantRestrictions:  string[];
+  notes:               string | null;
+  firmName:            string | null;
+  confidence:          number;
+  canonicalPropertyId: string | null;
+  workspaceId:         string;
+  agents:              any[];
+  message:             { rawText: string; groupName: string | null; receivedAt: string } | null;
+  media:               any[];
+  createdAt:           string;
+  updatedAt:           string;
+};
+
+/* ── Data ── */
+async function getProperty(id: string): Promise<Property | null> {
+  try { return await serverGet<Property>(`/properties/${id}`); }
+  catch { return null; }
 }
 
-async function getPropertyLeads(id: string) {
-  try { return await serverGet<any[]>(`/properties/${id}/leads`); }
-  catch { return []; }
+/* ── Helpers ── */
+function formatPrice(rupees: number | null, listingType?: string): string {
+  if (!rupees) return '—';
+  if (rupees >= 10_000_000) return `₹${(rupees / 10_000_000).toFixed(2)}Cr`;
+  if (rupees >= 100_000)    return `₹${(rupees / 100_000).toFixed(2)}L`;
+  if (listingType === 'RENT') return `₹${rupees.toLocaleString('en-IN')}/mo`;
+  return `₹${rupees.toLocaleString('en-IN')}`;
 }
 
-async function getPropertyActivities(id: string) {
-  try { return await serverGet<any[]>(`/properties/${id}/activities`); }
-  catch { return []; }
+function buildTitle(p: Property): string {
+  return [p.bhk, p.propertySubType].filter(Boolean).join(' ') || 'Property';
 }
 
-/* ------------------------------------------------------------------ */
-/* ERROR STATE                                                         */
-/* ------------------------------------------------------------------ */
-
-function ErrorState() {
-  return (
-    <PageContainer className="bg-[#F7F5F0]">
-      <div className="flex flex-col items-center justify-center py-32 text-center">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-3xl">⚠️</div>
-        <p className="text-[16px] font-semibold text-slate-800">Failed to load property</p>
-        <p className="mt-1 text-[13px] text-slate-400">This property may have been deleted or is unavailable.</p>
-        <Link
-          href="/v2/properties"
-          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#0B1F14] px-4 py-2 text-sm font-medium text-white hover:bg-[#1A3525] transition-colors"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Back to properties
-        </Link>
-      </div>
-    </PageContainer>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* PAGE                                                                */
-/* ------------------------------------------------------------------ */
-
-export default async function PropertyDetailsPage({
+/* ── Page ── */
+export default async function PropertyPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const property = await getProperty(id);
+  if (!property) notFound();
 
-  let property: any, leads: any[], activities: any[];
-
-  try {
-    [property, leads, activities] = await Promise.all([
-      getProperty(id),
-      getPropertyLeads(id),
-      getPropertyActivities(id),
-    ]);
-  } catch (err) {
-    console.error('PropertyDetailsPage fetch failed:', err);
-    return <ErrorState />;
-  }
-
-
-  const title = property.bhk
-    ? `${property.bhk} ${property.propertySubType}`
-    : property.propertySubType ?? "Property";
-
+  const title    = buildTitle(property);
+  const subtitle = [property.area, property.city].filter(Boolean).join(', ');
+  const price = formatPrice(property.price, property.listingType);
 
   return (
-    <PageContainer className="bg-[#F7F5F0] min-h-screen">
+    <div className="min-h-screen bg-[#F7F5F0] pt-0 lg:pt-0">
 
-      {/* ── STICKY TOP NAV ── */}
-      <div className="sticky top-14 lg:top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white px-4 sm:px-6 py-2.5 sm:py-3">
-        <div className="flex items-center gap-1.5">
-          <BackButton className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors" />
-        <p className="absolute left-1/2 -translate-x-1/2 text-[13px] font-semibold text-slate-700 truncate max-w-[140px] sm:max-w-xs">
-          {title}
-        </p>
+      {/* ── FIXED TOP NAV ── */}
+      <div className="fixed top-14 lg:top-0 left-0 right-0 z-20 flex items-center gap-2 border-b border-slate-100 bg-white px-4 sm:px-6 py-2.5 lg:static lg:border-0 lg:bg-transparent lg:px-6 lg:pt-6 lg:pb-4">
+        <Link href="/v2/properties"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors flex-shrink-0">
+          <ChevronLeft className="h-4 w-4" />
+        </Link>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold text-slate-800 truncate lg:text-[16px] lg:font-bold lg:text-[#0B1F14]">
+            {title}
+          </p>
+          {subtitle && (
+            <p className="text-[11px] text-slate-400 truncate hidden lg:block">{subtitle}</p>
+          )}
         </div>
 
-          <DeletePropertyButton
-            propertyId={property.id}
-            propertyLabel={title}
-            compact
-          />
-
-        {/* <StartDealButton listingId={property.id} /> */}
+        <DeletePropertyButton 
+          propertyId={property.id} 
+          propertyLabel={buildTitle(property)}
+        />
       </div>
 
+      {/* ── CONTENT ── */}
+      <div className="mx-auto max-w-2xl px-4 sm:px-6 pt-16 lg:pt-0 pb-24 lg:pb-8 space-y-3">
 
-      {/* ── PAGE BODY ── */}
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 py-4 sm:py-6 space-y-5">
-        <div className="grid grid-cols-12 gap-5">
+        {/* ── SUMMARY CARD ── */}
+        <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] px-4 py-4">
 
-          {/* ── LEFT — property details ── */}
-          <div className="col-span-12 lg:col-span-4">
-            <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-              <div className={[
-                "h-1 w-full",
-                property.status === "APPROVED"         ? "bg-emerald-400" :
-                property.urgencyLevel === "VERY_URGENT" ? "bg-red-400"     :
-                                                          "bg-amber-400",
-              ].join(" ")} />
-              <div className="px-5 py-5">
-                <PropertyDetails property={property} />
+          {/* Listing type bar */}
+          <div className={`h-1 w-full rounded-full mb-4 ${property.listingType === 'SALE' ? 'bg-violet-500' : 'bg-emerald-500'}`} />
+
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${property.listingType === 'SALE' ? 'bg-violet-100 text-violet-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                  {property.listingType}
+                </span>
+                {property.status === 'NEW' && (
+                  <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">New</span>
+                )}
+                {property.refCode && (
+                  <span className="text-[10px] text-slate-400 font-mono">{property.refCode}</span>
+                )}
               </div>
+              <p className="text-[20px] font-bold text-slate-900 leading-tight">{price}</p>
+              <p className="text-[13.5px] font-semibold text-slate-700 mt-0.5">{title}</p>
+              {subtitle && <p className="text-[12px] text-slate-400 mt-0.5">{subtitle}</p>}
+              {property.building && <p className="text-[12px] text-slate-400">{property.building}</p>}
             </div>
+
+            {property.areaSqft && (
+              <div className="flex-shrink-0 text-right">
+                <p className="text-[16px] font-bold text-slate-700">{property.areaSqft.toLocaleString()}</p>
+                <p className="text-[11px] text-slate-400">sqft</p>
+              </div>
+            )}
           </div>
 
-          {/* ── RIGHT — leads + source message ── */}
-          <div className="col-span-12 lg:col-span-8 space-y-4">
-
-            {property.message?.rawText && (
-              <WhatsAppMessageCard message={property.message.rawText} />
+          {/* Key details row */}
+          <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
+            {property.furnishing && (
+              <span className="text-[11.5px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1">
+                {property.furnishing.replace(/_/g, ' ')}
+              </span>
             )}
+            {property.floor != null && (
+              <span className="text-[11.5px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1">
+                Floor {property.floor}{property.totalFloors ? `/${property.totalFloors}` : ''}
+              </span>
+            )}
+            {property.deposit && (
+              <span className="text-[11.5px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1">
+                Deposit {formatPrice(property.deposit)}
+              </span>
+            )}
+            {property.negotiable && (
+              <span className="text-[11.5px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1">
+                Negotiable
+              </span>
+            )}
+          </div>
 
-            <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-                <p className="text-[13px] font-semibold text-slate-800">Leads</p>
-                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500">
-                  {Array.isArray(leads) ? leads.length : 0}
-                </span>
-              </div>
-              <div className="px-5 py-4">
-                <PropertyLeadsDropdown leads={leads} />
-              </div>
+          {/* Source message */}
+          {property.message && (
+            <MessageModal
+              message={property.message.rawText}
+              groupName={property.message.groupName}
+            />
+          )}
+        </div>
+
+        {/* ── TABBED SECTIONS ── */}
+        <PropertySectionTabs
+          detailsContent={
+            <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] px-4 py-4">
+              <PropertyDetails property={property} />
             </div>
-
+          }
+          mediaContent={
             <MediaGallery
               listingId={property.id}
-              canonicalPropertyId={property.canonicalPropertyId}
+              canonicalPropertyId={property.canonicalPropertyId ?? undefined}
             />
+          }
+          mediaCount={property.media?.length ?? 0}
+        />
 
-          </div>
-        </div>
-
-        {/* ── ACTIVITY TIMELINE ── */}
-        <div className="rounded-2xl bg-white border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-          <div className="border-b border-slate-100 px-5 py-3.5">
-            <p className="text-[13px] font-semibold text-slate-800">Activity</p>
-          </div>
-          <div className="px-5 py-4">
-            <PropertyActivityTimeline activities={activities} propertyId={property.id} />
-          </div>
-        </div>
       </div>
-    </PageContainer>
+    </div>
   );
 }
