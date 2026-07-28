@@ -11,28 +11,59 @@ import { JwtPayload } from './jwt-payload.interface';
 import { AuthGuard } from '@nestjs/passport';
 import { SkipBilling } from '../modules/billing/skip-billing.decorator';
 
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+const COOKIE_OPTS = {
+  httpOnly: true,
+  secure:   IS_PROD,
+  sameSite: (IS_PROD ? 'none' : 'lax') as 'none' | 'lax',
+  path:     '/',
+};
+
+function setCookies(res: Response, accessToken: string, refreshToken: string) {
+  res.cookie('access_token',  accessToken,  { ...COOKIE_OPTS, maxAge: 60 * 60 * 1000 });
+  res.cookie('refresh_token', refreshToken, { ...COOKIE_OPTS, maxAge: 30 * 24 * 60 * 60 * 1000 });
+}
+
 @SkipBilling()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  async register(@Body() dto: RegisterDto, @Req() req: Request) {
-    return this.authService.register(dto, req);
+  async register(
+    @Body() dto: RegisterDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.register(dto, req);
+    setCookies(res, result.accessToken, result.refreshToken);
+    return result;
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: LoginDto, @Req() req: Request) {
-    return this.authService.login(dto, req);
+  async login(
+    @Body() dto: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(dto, req);
+    setCookies(res, result.accessToken, result.refreshToken);
+    return result;
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Req() req: Request & { cookies: any }) {
+  async refresh(
+    @Req() req: Request & { cookies: any },
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const refreshToken = req.cookies?.refresh_token;
     if (!refreshToken) throw new UnauthorizedException('No refresh token');
-    return this.authService.refresh(refreshToken, req);
+    const result = await this.authService.refresh(refreshToken, req);
+    setCookies(res, result.accessToken, result.refreshToken);
+    return result;
   }
 
   @Post('logout')
@@ -43,21 +74,14 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.authService.logout(user.sub);
-    const isProd = process.env.NODE_ENV === 'production';
-    const cookieOpts = {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
-      path: '/',
-    };
-    res.clearCookie('access_token', cookieOpts);
-    res.clearCookie('refresh_token', cookieOpts);
+    res.clearCookie('access_token',  COOKIE_OPTS);
+    res.clearCookie('refresh_token', COOKIE_OPTS);
     return { message: 'Logged out successfully' };
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async me(@CurrentUser() user: JwtPayload, @Req() req: Request) {
+  async me(@CurrentUser() user: JwtPayload) {
     return user;
   }
 
@@ -91,8 +115,11 @@ export class AuthController {
   async registerMember(
     @Body() body: { inviteToken: string; name: string; email: string; password: string; phone?: string },
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.registerViaInvite(body, req);
+    const result = await this.authService.registerViaInvite(body, req);
+    setCookies(res, result.accessToken, result.refreshToken);
+    return result;
   }
 
   @Post('update-phone')

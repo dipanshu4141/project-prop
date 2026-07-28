@@ -32,6 +32,7 @@ async function proxy(req: NextRequest, context: Context, method: string) {
 
     // Forward ALL Set-Cookie headers, rewritten for same-origin
     const rawHeaders = res.headers.getSetCookie?.() ?? [];
+    console.log('Set-Cookie headers from Railway:', rawHeaders.length, rawHeaders);
     for (const raw of rawHeaders) {
       // Rewrite: remove domain, change sameSite to lax, keep httpOnly+secure
       const rewritten = raw.replace(/;\s*domain=[^;]+/gi, '');
