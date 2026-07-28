@@ -82,7 +82,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async me(@CurrentUser() user: JwtPayload) {
-    return user;
+    return this.authService.getFullUser(user.sub);
   }
 
   @Post('verify-email')

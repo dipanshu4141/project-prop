@@ -348,6 +348,25 @@ export class AuthService {
     });
   }
 
+
+  // ─────────────────────────────────────────────────────────────
+  // GET FULL USER INFO
+  // ─────────────────────────────────────────────────────────────
+  async getFullUser(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id:           true,
+        name:         true,
+        email:        true,
+        phone:        true,
+        avatarUrl:    true,
+        platformRole: true,
+        emailVerified: true,
+      },
+    });
+  }
+
   // ─────────────────────────────────────────────────────────────
   // HELPERS
   // ─────────────────────────────────────────────────────────────

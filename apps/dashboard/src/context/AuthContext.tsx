@@ -1,159 +1,167 @@
-"use client";
+'use client';
 
 import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useCallback,
-  ReactNode,
+  createContext, useContext, useState, useEffect,
+  useCallback, useRef, ReactNode,
 } from 'react';
+import { apiGet } from '@/lib/api';
 
-export type AuthUser = {
-  id:           string;
-  email:        string;
-  name:         string | null;
-  platformRole: 'SUPERADMIN' | 'SUPPORT' | 'USER';
-};
+/* ── Types ── */
+export interface AuthUser {
+  id:            string;
+  email:         string;
+  name:          string | null;
+  platformRole:  string;
+  emailVerified?: boolean;
+}
 
-export type AuthWorkspace = {
+export interface AuthWorkspace {
   id:           string;
   name:         string;
   slug:         string;
-  type:         'INDIVIDUAL' | 'FIRM';
-  role:         'OWNER' | 'BROKER' | 'VIEWER';
+  type:         string;
+  role:         string;
   planSelected: boolean;
-};
+}
 
-type AuthState = {
+interface AuthContextValue {
   user:      AuthUser | null;
   workspace: AuthWorkspace | null;
+  ready:     boolean;
   loading:   boolean;
-};
-
-type AuthContextValue = AuthState & {
   login:     (user: AuthUser, workspace: AuthWorkspace) => void;
-  logout:    () => Promise<void>;
-  isAdmin:   () => boolean;
-  isSupport: () => boolean;
-};
+  logout:    () => void;
+}
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+/* ── Storage ── */
+const USER_KEY      = 'auth_user';
+const WORKSPACE_KEY = 'auth_workspace';
+
+function saveToStorage(user: AuthUser, workspace: AuthWorkspace) {
+  try {
+    sessionStorage.setItem(USER_KEY,      JSON.stringify(user));
+    sessionStorage.setItem(WORKSPACE_KEY, JSON.stringify(workspace));
+  } catch {}
+}
+
+function loadFromStorage(): { user: AuthUser; workspace: AuthWorkspace } | null {
+  try {
+    const u = sessionStorage.getItem(USER_KEY);
+    const w = sessionStorage.getItem(WORKSPACE_KEY);
+    if (u && w) return { user: JSON.parse(u), workspace: JSON.parse(w) };
+  } catch {}
+  return null;
+}
+
+function clearStorage() {
+  try {
+    sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(WORKSPACE_KEY);
+  } catch {}
+}
+
+/* ── Context ── */
+const AuthContext = createContext<AuthContextValue>({
+  user:      null,
+  workspace: null,
+  ready:     false,
+  loading:   false,
+  login:     () => {},
+  logout:    () => {},
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    user:     null,
-    workspace: null,
-    loading:  true,
-  });
+  const [user,      setUser]      = useState<AuthUser | null>(null);
+  const [workspace, setWorkspace] = useState<AuthWorkspace | null>(null);
+  const [ready,     setReady]     = useState(false);
+  const [loading,   setLoading]   = useState(false);
+  const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  /* ── Proactive silent refresh every 50 minutes ── */
   useEffect(() => {
-    const restore = async () => {
-      // 1. Check sessionStorage cache first
+    if (!user) {
+      if (refreshTimer.current) clearInterval(refreshTimer.current);
+      return;
+    }
+    refreshTimer.current = setInterval(async () => {
       try {
-        const cached = sessionStorage.getItem('auth_user');
-        if (cached) {
-          const { user, workspace, ts } = JSON.parse(cached);
-          if (Date.now() - ts < 10 * 60 * 1000) {
-            setState({ user, workspace, loading: false });
-            return;
-          }
-        }
+        await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
       } catch {}
-
-      // 2. Try /auth/me
-      try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
-
-        if (res.ok) {
-          const payload = await res.json();
-          const user: AuthUser = {
-            id:           payload.sub,
-            email:        payload.email,
-            name:         payload.name ?? null,
-            platformRole: payload.platformRole,
-          };
-          const workspace: AuthWorkspace = {
-            id:           payload.workspaceId,
-            name:         '',
-            slug:         '',
-            type:         'INDIVIDUAL',
-            role:         payload.role,
-            planSelected: payload.planSelected ?? false,
-          };
-          setState({ user, workspace, loading: false });
-          sessionStorage.setItem('auth_user', JSON.stringify({ user, workspace, ts: Date.now() }));
-          return;
-        }
-
-        // 3. 401 — try refresh
-        if (res.status === 401) {
-          const refreshRes = await fetch('/api/auth/refresh', {
-            method:      'POST',
-            credentials: 'include',
-          });
-
-          if (refreshRes.ok) {
-            const retryRes = await fetch('/api/auth/me', { credentials: 'include' });
-            if (retryRes.ok) {
-              const payload = await retryRes.json();
-              const user: AuthUser = {
-                id:           payload.sub,
-                email:        payload.email,
-                name:         payload.name ?? null,
-                platformRole: payload.platformRole,
-              };
-              const workspace: AuthWorkspace = {
-                id:           payload.workspaceId,
-                name:         '',
-                slug:         '',
-                type:         'INDIVIDUAL',
-                role:         payload.role,
-                planSelected: payload.planSelected ?? false,
-              };
-              setState({ user, workspace, loading: false });
-              sessionStorage.setItem('auth_user', JSON.stringify({ user, workspace, ts: Date.now() }));
-              return;
-            }
-          }
-        }
-
-        // 4. Both failed
-        setState({ user: null, workspace: null, loading: false });
-      } catch {
-        setState({ user: null, workspace: null, loading: false });
-      }
+    }, 50 * 60 * 1000);
+    return () => {
+      if (refreshTimer.current) clearInterval(refreshTimer.current);
     };
+  }, [user]);
 
-    restore();
+  /* ── Init on mount ── */
+  useEffect(() => {
+    async function initUser() {
+      setLoading(true);
+
+      // Instant render from cache
+      const stored = loadFromStorage();
+      if (stored) {
+        setUser(stored.user);
+        setWorkspace(stored.workspace);
+      }
+
+      try {
+        const me = await apiGet<{
+          id:            string;
+          email:         string;
+          name:          string | null;
+          platformRole:  string;
+          emailVerified: boolean;
+        }>('/auth/me');
+
+        const freshUser: AuthUser = {
+          id:            me.id,
+          email:         me.email,
+          name:          me.name,
+          platformRole:  me.platformRole,
+          emailVerified: me.emailVerified,
+        };
+
+        setUser(freshUser);
+
+        if (stored?.workspace) {
+          setWorkspace(stored.workspace);
+          saveToStorage(freshUser, stored.workspace);
+        }
+      } catch {
+        if (!stored) {
+          clearStorage();
+          setUser(null);
+          setWorkspace(null);
+        }
+      } finally {
+        setReady(true);
+        setLoading(false);
+      }
+    }
+
+    initUser();
   }, []);
 
-  const login = useCallback((user: AuthUser, workspace: AuthWorkspace) => {
-    setState({ user, workspace, loading: false });
-    sessionStorage.setItem('auth_user', JSON.stringify({ user, workspace, ts: Date.now() }));
+  const login = useCallback((newUser: AuthUser, newWorkspace: AuthWorkspace) => {
+    setUser(newUser);
+    setWorkspace(newWorkspace);
+    saveToStorage(newUser, newWorkspace);
   }, []);
 
-  const logout = useCallback(async () => {
-    setState({ user: null, workspace: null, loading: false });
-    sessionStorage.removeItem('auth_user');
-    try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    } catch {}
-    window.location.href = '/login';
+  const logout = useCallback(() => {
+    setUser(null);
+    setWorkspace(null);
+    clearStorage();
   }, []);
-
-  const isAdmin   = useCallback(() => state.user?.platformRole === 'SUPERADMIN', [state.user]);
-  const isSupport = useCallback(() => state.user?.platformRole === 'SUPPORT',    [state.user]);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, isAdmin, isSupport }}>
+    <AuthContext.Provider value={{ user, workspace, ready, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
-  return ctx;
+export function useAuth() {
+  return useContext(AuthContext);
 }
