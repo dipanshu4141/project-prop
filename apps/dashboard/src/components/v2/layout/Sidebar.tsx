@@ -351,7 +351,7 @@ import { useState, useRef, useEffect } from "react";
 const NAV_ITEMS = [
   { href: "/v2/dashboard",   label: "Dashboard",  icon: LayoutDashboard },
   { href: "/v2/properties",  label: "Properties", icon: Building2       },
-  { href: "/v2/clients",     label: "Clients",    icon: Users           },
+  { href: "/v2/leads",     label: "Clients",    icon: Users           },
   { href: "/v2/deals",       label: "Pipeline",   icon: GitBranch       },
   { href: "/v2/groups",      label: "Groups",     icon: Radio           },
   { href: "/v2/collections", label: "Saved",      icon: BookMarked      },
