@@ -333,6 +333,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useRef, useEffect } from "react";
+import { apiPost } from "@/lib/api";
 
 /* ------------------------------------------------------------------ */
 /* NAV CONFIG                                                          */
@@ -483,7 +484,13 @@ function MobileProfileMenu() {
               {/* Logout */}
               <div className="border-t border-slate-100 p-4">
                 <button
-                  onClick={() => { setOpen(false); logout(); }}
+                  onClick={() => {
+                    setOpen(false);
+                    apiPost('/auth/logout', {}).catch(() => {}).finally(() => {
+                      logout();
+                      window.location.href = '/login';
+                    });
+                  }}
                   className="flex w-full items-center gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-[13px] font-semibold text-red-600 hover:bg-red-100 transition-colors"
                 >
                   <LogOut className="h-4 w-4" />
@@ -627,7 +634,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <div className="p-2 border-t border-white/10 flex-shrink-0">
           {collapsed ? (
             <button
-              onClick={logout}
+              onClick={() => {
+                apiPost('/auth/logout', {}).catch(() => {}).finally(() => {
+                  logout();
+                  window.location.href = '/login';
+                });
+              }}
               title="Logout"
               className="flex w-full items-center justify-center py-2 rounded-lg text-white/30 hover:bg-white/10 hover:text-white/80 transition-all"
             >
@@ -643,7 +655,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   <p className="text-[13px] font-semibold text-white truncate leading-tight">{displayName}</p>
                 </div>
                 <button
-                  onClick={logout}
+                  onClick={() => {
+                    apiPost('/auth/logout', {}).catch(() => {}).finally(() => {
+                      logout();
+                      window.location.href = '/login';
+                    });
+                  }}
                   className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-white/30 hover:bg-white/10 hover:text-white/80 transition-all"
                   aria-label="Logout"
                 >
