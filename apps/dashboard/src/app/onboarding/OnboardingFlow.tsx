@@ -58,7 +58,7 @@ function PlanStep({ onNext }: { onNext: () => void }) {
     <div className="space-y-5">
       <div>
         <h2 className="text-2xl font-bold mb-1" style={{ color: '#0B1F14' }}>Your plan</h2>
-        <p className="text-gray-400 text-sm">7-day free trial included. No charges until trial ends.</p>
+        <p className="text-gray-400 text-sm">14-day free trial included. No charges until trial ends.</p>
       </div>
 
       {/* Single plan card */}
@@ -100,7 +100,7 @@ function PlanStep({ onNext }: { onNext: () => void }) {
         className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50"
         style={{ background: '#0B1F14' }}
       >
-        {loading ? 'Setting up…' : <> Start 7-day free trial <ChevronRight className="h-4 w-4" /> </>}
+        {loading ? 'Setting up…' : <> Start 14-day free trial <ChevronRight className="h-4 w-4" /> </>}
       </button>
       <p className="text-center text-xs text-gray-400">
         ₹999/month after trial · Cancel anytime · Inclusive of GST

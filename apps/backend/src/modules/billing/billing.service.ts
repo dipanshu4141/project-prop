@@ -100,7 +100,7 @@ export class BillingService {
         status:   'TRIALING',
         interval: 'MONTHLY',
         gatewaySubscriptionId: rzpSub.id,
-        trialEndsAt: sub?.trialEndsAt ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        trialEndsAt: sub?.trialEndsAt ?? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         seats:    1,
         seatsUsed: 1,
       },

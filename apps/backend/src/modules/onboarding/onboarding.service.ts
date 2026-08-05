@@ -93,56 +93,47 @@ export class OnboardingService {
 
   // ── Step 2: Select plan ─────────────────────────────────────────────────────
   // Records the plan choice. Actual billing wired separately with Razorpay.
-
   async selectPlan(
-    userId:      string,
-    plan:        string,
-    interval:    'MONTHLY' | 'ANNUAL' = 'MONTHLY',
+    userId:   string,
+    plan:     string,
+    interval: 'MONTHLY' | 'ANNUAL' = 'MONTHLY',
   ) {
     const membership = await this.prisma.workspaceMember.findFirst({
-      where: { userId, role: 'OWNER' },
+      where:  { userId, role: 'OWNER' },
       select: { workspaceId: true },
     });
-
-    if (!membership) {
-      throw new BadRequestException('Complete workspace setup first');
-    }
+    if (!membership) throw new BadRequestException('Complete workspace setup first');
 
     const { workspaceId } = membership;
 
-    const VALID_PLANS = ['INDIVIDUAL']
+    const VALID_PLANS = ['INDIVIDUAL'];
     if (!VALID_PLANS.includes(plan)) {
       throw new BadRequestException(`Invalid plan. Choose: ${VALID_PLANS.join(', ')}`);
     }
 
-    // Update workspace plan
+    // Block if subscription already exists — prevents trial reset exploit
+    const existing = await this.prisma.subscription.findUnique({
+      where: { workspaceId },
+    });
+    if (existing) throw new BadRequestException('Subscription already exists');
+
     await this.prisma.workspace.update({
       where: { id: workspaceId },
       data:  { plan, planSelected: true },
     });
 
-    // Create or update subscription record
-   const trialEndsAt = new Date();
-    trialEndsAt.setDate(trialEndsAt.getDate() + 7); // 7-day trial
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 14);
 
-
-    await this.prisma.subscription.upsert({
-      where:  { workspaceId },
-      create: {
+    await this.prisma.subscription.create({
+      data: {
         workspaceId,
         plan,
-        status:   plan === 'FREE' ? 'ACTIVE' : 'TRIALING',
+        status:      'TRIALING',
         interval,
-        trialEndsAt: plan === 'FREE' ? null : trialEndsAt,
-        seats:    this.seatsForPlan(plan),
-        seatsUsed: 1,
-      },
-      update: {
-        plan,
-        interval,
-        status:   plan === 'FREE' ? 'ACTIVE' : 'TRIALING',
-        trialEndsAt: plan === 'FREE' ? null : trialEndsAt,
-        seats:    this.seatsForPlan(plan),
+        trialEndsAt,
+        seats:       this.seatsForPlan(plan),
+        seatsUsed:   1,
       },
     });
 

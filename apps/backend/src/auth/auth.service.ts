@@ -90,7 +90,7 @@ export class AuthService {
             status:      'TRIALING',
             seats:       1,
             seatsUsed:   1,
-            trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
           },
         });
 
@@ -247,7 +247,7 @@ export class AuthService {
             status:      'TRIALING',
             seats:       1,
             seatsUsed:   1,
-            trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
           },
         });
         return u;

@@ -379,7 +379,7 @@ export class AdminService {
           status:      'TRIALING',
           trialEndsAt: {
             gte: new Date(),
-            lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            lte: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
           },
         },
         include: {

@@ -39,15 +39,15 @@ const WORKSPACE_KEY = 'auth_workspace';
 
 function saveToStorage(user: AuthUser, workspace: AuthWorkspace) {
   try {
-    sessionStorage.setItem(USER_KEY,      JSON.stringify(user));
-    sessionStorage.setItem(WORKSPACE_KEY, JSON.stringify(workspace));
+    localStorage.setItem(USER_KEY,      JSON.stringify(user));
+    localStorage.setItem(WORKSPACE_KEY, JSON.stringify(workspace));
   } catch {}
 }
 
 function loadFromStorage(): { user: AuthUser; workspace: AuthWorkspace } | null {
   try {
-    const u = sessionStorage.getItem(USER_KEY);
-    const w = sessionStorage.getItem(WORKSPACE_KEY);
+    const u = localStorage.getItem(USER_KEY);
+    const w = localStorage.getItem(WORKSPACE_KEY);
     if (u && w) return { user: JSON.parse(u), workspace: JSON.parse(w) };
   } catch {}
   return null;
@@ -55,8 +55,8 @@ function loadFromStorage(): { user: AuthUser; workspace: AuthWorkspace } | null 
 
 function clearStorage() {
   try {
-    sessionStorage.removeItem(USER_KEY);
-    sessionStorage.removeItem(WORKSPACE_KEY);
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(WORKSPACE_KEY);
   } catch {}
 }
 

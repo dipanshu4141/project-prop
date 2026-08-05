@@ -33,9 +33,12 @@ export default async function OnboardingPage({
 
   if (!status) redirect('/login');
 
+  // Block trial reset exploit — if plan already selected, go to dashboard
+  if (status.planSelected) redirect('/v2/dashboard');
+
   const startAtPlan = params.step === 'plan';
 
-  if (status.hasWorkspace && !startAtPlan && status.planSelected) {
+  if (status.hasWorkspace && !startAtPlan) {
     redirect('/v2/dashboard');
   }
 
