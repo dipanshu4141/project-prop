@@ -122,8 +122,12 @@ export class PrivateGroupsService {
   // GET /private-groups/pending — check if pending request exists
   async getPendingRequest(workspaceId: string) {
     const request = await this.prisma.privateGroupRequest.findFirst({
-        where: { workspaceId, status: 'PENDING', expiresAt: { gt: new Date() } },
+      where: { workspaceId, status: 'PENDING', expiresAt: { gt: new Date() } },
     });
-    return request ?? {};
-    }
+    if (!request) return {};
+    return {
+      ...request,
+      phoneNumber: process.env.PRIVATE_INGESTION_PHONE,
+    };
+  }
 }

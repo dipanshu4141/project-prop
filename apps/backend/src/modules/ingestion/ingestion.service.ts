@@ -299,17 +299,20 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
         }
 
         // Also upsert the group into DB with correct name
+                // Only claim ownership on first creation. Never overwrite workspaceId
+        // on update — a second workspace posting a valid code should get
+        // their own subscription, not steal the group from whoever linked it first.
         const group = await this.prisma.ingestionGroup.upsert({
           where: { groupJid_ingestionPhoneId: { groupJid, ingestionPhoneId: phoneId } },
-          create: { 
-            groupJid, 
-            groupName, 
+          create: {
+            groupJid,
+            groupName,
             ingestionPhoneId: phoneId,
             isPrivate: true,
             workspaceId: request.workspaceId,
             claimExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
           },
-          update: { groupName, isPrivate: true, workspaceId: request.workspaceId },
+          update: { groupName },
         });
 
         await this.prisma.$transaction(async (tx) => {
