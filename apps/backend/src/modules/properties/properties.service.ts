@@ -40,7 +40,7 @@ export class PropertiesService {
     if (!aiResult || !Array.isArray(aiResult.properties)) return;
 
     const message = await this.prisma.message.findFirst({
-      where: { id: messageId, workspaceId },
+      where: { id: messageId },
     });
 
     if (!message) {

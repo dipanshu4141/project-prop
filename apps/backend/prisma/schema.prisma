@@ -539,7 +539,7 @@ model WorkspaceListing {
   @@index([workspaceId, status])
   @@index([workspaceId, createdAt])
   @@index([areaId])
-
+  @@index([messageId, workspaceId])
 
 }
 

@@ -123,16 +123,20 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
         const meta = this.sessions.get(phone.id);
         if (meta) meta.status = 'DISCONNECTED';
 
-        // 405 on a fresh (unauthenticated) session = WA rejected empty creds.
-        // Restart so Baileys can generate a fresh QR.
-        // 401 = truly logged out after prior auth — also restart for re-scan.
-        // Any other reason = transient, reconnect.
         const isLoggedOut = reason === DisconnectReason.loggedOut; // 401
         const isRejected  = reason === 405;
 
         const fresh = await this.prisma.ingestionPhone.findUnique({
           where: { id: phone.id },
         });
+
+        // Release the dead socket's listeners/state before reconnecting
+        try {
+          sock.ev.removeAllListeners('connection.update');
+          sock.ev.removeAllListeners('creds.update');
+          sock.ev.removeAllListeners('messages.upsert');
+          sock.end(undefined);
+        } catch {}
 
         if (fresh?.active) {
           this.sessions.delete(phone.id);
@@ -222,7 +226,8 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
       for (const sub of subscriptions) {
         const messages = await this.prisma.message.findMany({
           where: { groupName: sub.group.groupName },
-          orderBy: { receivedAt: 'asc' },
+          orderBy: { receivedAt: 'desc' },
+          take: 500,
         });
 
         for (const msg of messages) {
@@ -344,26 +349,21 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
       where: { hash },
     });
 
-    // 3. Store raw message per workspace so createFromAi's guard passes for each
-    const messageKey = `${groupJid}:${hash}`;
-    const messageIds: Record<string, string> = {};
-
-    for (const wsId of workspaceIds) {
-      const wsMessageKey = `${messageKey}:${wsId}`;
-      const saved = await this.prisma.message.upsert({
-        where: { messageKey: wsMessageKey },
-        create: {
-          messageKey: wsMessageKey,
-          rawText: text,
-          groupName,
-          sender,
-          receivedAt: new Date(),
-          workspaceId: wsId,
-        },
-        update: {},
-      }).catch(() => null);
-      if (saved) messageIds[wsId] = saved.id;
-    }
+        // 3. Store ONE global message row for this group+content — no per-workspace copies
+        const messageKey = `${groupJid}:${hash}`;
+        const saved = await this.prisma.message.upsert({
+          where: { messageKey },
+          create: {
+            messageKey,
+            rawText: text,
+            groupName,
+            sender,
+            receivedAt: new Date(),
+            workspaceId: workspaceIds[0],
+          },
+          update: {},
+        }).catch(() => null);
+        const messageId = saved?.id ?? '';
 
     if (cached) {
       await this.prisma.globalMessageCache.update({
@@ -372,13 +372,13 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
       });
       for (const wsId of workspaceIds) {
         await this.properties
-          .createFromAi(wsId, messageIds[wsId] ?? '', cached.aiResult as any, sender)
+          .createFromAi(wsId, messageId, cached.aiResult as any, sender)
           .catch((err) =>
             this.logger.error(`createFromAi(cached) ws=${wsId}: ${err.message}`),
           );
       }
-        await this.updateLastSeenAtByHash(hash, workspaceIds);
-        await this.updateLastSeenForWorkspaces(workspaceIds, messageIds);
+
+        await this.updateLastSeenForWorkspaces(workspaceIds, messageId);
 
       return;
     }
@@ -401,15 +401,14 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
      // 7. Fan-out to all subscribed workspaces
     for (const wsId of workspaceIds) {
       await this.properties
-        .createFromAi(wsId, messageIds[wsId] ?? '', outcome.data, sender)
+        .createFromAi(wsId, messageId, outcome.data, sender)
         .catch((err) =>
           this.logger.error(`createFromAi ws=${wsId}: ${err.message}`),
         );
     }
 
     // 8. Update lastSeenAt for all workspace listings that match this message
-    await this.updateLastSeenAtByHash(hash, workspaceIds);
-    await this.updateLastSeenForWorkspaces(workspaceIds, messageIds);
+    await this.updateLastSeenForWorkspaces(workspaceIds, messageId);
 
   }
 
@@ -423,50 +422,13 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private async updateLastSeenAtByHash(hash: string, workspaceIds: string[]) {
-    try {
-      // Find canonical via any workspace listing that has a message with this hash
-      const cached = await this.prisma.globalMessageCache.findUnique({ where: { hash } });
-      if (!cached) return;
-
-      // Find listings via messages that contain this text (matched by hash in cache)
-      // Simpler: find WorkspaceListings for these workspaces and update lastSeenAt
-      // We find them by looking at recently created messages with this hash
-      const messages = await this.prisma.message.findMany({
-        where: {
-          workspaceId: { in: workspaceIds },
-          rawText: { not: '' },
-        },
-        select: { id: true, workspaceId: true },
-        orderBy: { receivedAt: 'desc' },
-        take: workspaceIds.length * 2,
-      });
-
-      // Find all listings linked to these messages
-      for (const wsId of workspaceIds) {
-        const wsMessages = messages.filter(m => m.workspaceId === wsId);
-        for (const msg of wsMessages) {
-          await this.prisma.workspaceListing.updateMany({
-            where: { messageId: msg.id, workspaceId: wsId },
-            data: { lastSeenAt: new Date() },
-          });
-        }
-      }
-    } catch (err: any) {
-      this.logger.error(`updateLastSeenAt failed: ${err.message}`);
-    }
-  }
-
-  private async updateLastSeenForWorkspaces(workspaceIds: string[], messageIds: Record<string, string>) {
-  for (const wsId of workspaceIds) {
-    const msgId = messageIds[wsId];
-    if (!msgId) continue;
+    private async updateLastSeenForWorkspaces(workspaceIds: string[], messageId: string) {
+    if (!messageId) return;
     await this.prisma.workspaceListing.updateMany({
-      where: { messageId: msgId, workspaceId: wsId },
+      where: { messageId, workspaceId: { in: workspaceIds } },
       data:  { lastSeenAt: new Date() },
     });
   }
-}
   
 
   // ─── Group Sync ────────────────────────────────────────────────────────────

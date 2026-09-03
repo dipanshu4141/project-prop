@@ -1,0 +1,185 @@
+"filename", "language", "TypeScript", "MS SQL", "TypeScript JSX", "JSON", "JavaScript", "PostCSS", "comment", "blank", "total"
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma.config.ts", "TypeScript", 0, 0, 0, 0, 0, 0, -1, 0, -1
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260117153647_init/migration 2.sql", "MS SQL", 0, 37, 0, 0, 0, 0, 6, 9, 52
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260120095828_bigint_prices/migration 2.sql", "MS SQL", 0, 2, 0, 0, 0, 0, 1, 1, 4
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260120151104_contacts_upgrade/migration 2.sql", "MS SQL", 0, 5, 0, 0, 0, 0, 1, 1, 7
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260122112841_upgrade_property_schema_saas/migration 2.sql", "MS SQL", 0, 32, 0, 0, 0, 0, 19, 9, 60
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260122183550_add_property_activity_log/migration 2.sql", "MS SQL", 0, 11, 0, 0, 0, 0, 3, 4, 18
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260123053630_add_user_columns_to_property_activity/migration 2.sql", "MS SQL", 0, 2, 0, 0, 0, 0, 1, 1, 4
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260123161713_add_lead_crm/migration 2.sql", "MS SQL", 0, 4, 0, 0, 0, 0, 2, 2, 8
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260124023927_add_property_share/migration 2.sql", "MS SQL", 0, 12, 0, 0, 0, 0, 2, 3, 17
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260125104045_add_tenant_preferences_enum/migration 2.sql", "MS SQL", 0, 1, 0, 0, 0, 0, 1, 1, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260125105523_add_tenant_rules/migration 2.sql", "MS SQL", 0, 4, 0, 0, 0, 0, 8, 2, 14
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260125135521_add_agent_system/migration 2.sql", "MS SQL", 0, 26, 0, 0, 0, 0, 8, 11, 45
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260125201245_ingestion_log/migration 2.sql", "MS SQL", 0, 12, 0, 0, 0, 0, 3, 4, 19
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260126065737_add_agent_merge_system/migration 2.sql", "MS SQL", 0, 12, 0, 0, 0, 0, 2, 3, 17
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260126145016_add_property_notes/migration 2.sql", "MS SQL", 0, 1, 0, 0, 0, 0, 1, 1, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260126150732_add_lead_field_to_property_share/migration 2.sql", "MS SQL", 0, 4, 0, 0, 0, 0, 1, 1, 6
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260128170540_add_team_member/migration 2.sql", "MS SQL", 0, 7, 0, 0, 0, 0, 1, 2, 10
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260202090910_add_client_thread/migration 2.sql", "MS SQL", 0, 33, 0, 0, 0, 0, 10, 13, 56
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260202102249_add_follow_up_to_client_property/migration 2.sql", "MS SQL", 0, 1, 0, 0, 0, 0, 1, 1, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260202122244_add_last_contacted_at/migration 2.sql", "MS SQL", 0, 1, 0, 0, 0, 0, 1, 1, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260217123424_merged_into/migration 2.sql", "MS SQL", 0, 1, 0, 0, 0, 0, 1, 1, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260217161807_property_count_added/migration 2.sql", "MS SQL", 0, 1, 0, 0, 0, 0, 1, 1, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260319061333_add_workspace_auth_canonical_property_deals/migration 2.sql", "MS SQL", 0, 497, 0, 0, 0, 0, 205, 203, 905
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260319183305_add_client_property_clientstatus/migration 2.sql", "MS SQL", 0, 17, 0, 0, 0, 0, 8, 9, 34
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260321020304_add_availability_status_enum/migration 2.sql", "MS SQL", 0, 3, 0, 0, 0, 0, 8, 2, 13
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260321165954_add_client_owner_and_lead_assignment/migration 2.sql", "MS SQL", 0, 4, 0, 0, 0, 0, 4, 4, 12
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260412030816_message_cache/migration 2.sql", "MS SQL", 0, 10, 0, 0, 0, 0, 3, 4, 17
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260412093911_add_deal_client_relation/migration 2.sql", "MS SQL", 0, 1, 0, 0, 0, 0, 1, 1, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260429143941_add_shared_ingestion/migration 2.sql", "MS SQL", 0, 41, 0, 0, 0, 0, 12, 16, 69
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260501172033_add_listing_last_activity/migration 2.sql", "MS SQL", 0, 1, 0, 0, 0, 0, 1, 1, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260502073635_add_listing_last_seen_at/migration 2.sql", "MS SQL", 0, 1, 0, 0, 0, 0, 1, 1, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260516150715_add_collections_and_shortlists/migration.sql", "MS SQL", 0, 50, 0, 0, 0, 0, 17, 21, 88
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260614_add_phone_unique/migration.sql", "MS SQL", 0, 1, 0, 0, 0, 0, 0, 1, 2
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260615144423_add_private_group_request/migration.sql", "MS SQL", 0, 19, 0, 0, 0, 0, 7, 8, 34
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260615150945_add_claim_expires/migration.sql", "MS SQL", 0, 1, 0, 0, 0, 0, 1, 1, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/prisma/migrations/20260703174950_add_workspace_last_active/migration.sql", "MS SQL", 0, 1, 0, 0, 0, 0, 1, 1, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/app.module.ts", "TypeScript", 22, 0, 0, 0, 0, 0, 0, 0, 22
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/auth/auth.controller.ts", "TypeScript", 3, 0, 0, 0, 0, 0, -29, -5, -31
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/auth/auth.service.ts", "TypeScript", 82, 0, 0, 0, 0, 0, -4, 9, 87
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/auth/dto/auth.dto.ts", "TypeScript", 2, 0, 0, 0, 0, 0, -1, -1, 0
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/main.ts", "TypeScript", 0, 0, 0, 0, 0, 0, 1, 1, 2
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/middleware/activity.middleware.ts", "TypeScript", 28, 0, 0, 0, 0, 0, 0, 2, 30
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/admin/admin-users.service.ts", "TypeScript", -18, 0, 0, 0, 0, 0, -1, -3, -22
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/billing/billing.controller.ts", "TypeScript", 47, 0, 0, 0, 0, 0, 5, 5, 57
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/billing/billing.guard.ts", "TypeScript", 62, 0, 0, 0, 0, 0, 6, 16, 84
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/billing/billing.module.ts", "TypeScript", 7, 0, 0, 0, 0, 0, 0, 0, 7
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/billing/billing.service.ts", "TypeScript", 199, 0, 0, 0, 0, 0, 15, 36, 250
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/billing/skip-billing.decorator.ts", "TypeScript", 2, 0, 0, 0, 0, 0, 1, 0, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/clients/clients.controller.ts", "TypeScript", 8, 0, 0, 0, 0, 0, 0, 2, 10
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/clients/clients.module.ts", "TypeScript", 2, 0, 0, 0, 0, 0, 0, 0, 2
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/collections/collections.controller.ts", "TypeScript", 63, 0, 0, 0, 0, 0, 0, 13, 76
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/collections/collections.module.ts", "TypeScript", 11, 0, 0, 0, 0, 0, 0, 1, 12
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/collections/collections.service.ts", "TypeScript", 99, 0, 0, 0, 0, 0, 1, 10, 110
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/ingestion/db-auth-state.ts", "TypeScript", 47, 0, 0, 0, 0, 0, 0, 6, 53
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/ingestion/ingestion.service.ts", "TypeScript", 70, 0, 0, 0, 0, 0, 4, 9, 83
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/listings/listings.controller.ts", "TypeScript", 7, 0, 0, 0, 0, 0, 0, 1, 8
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/listings/listings.service.ts", "TypeScript", 35, 0, 0, 0, 0, 0, 1, 7, 43
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/listings/update-listing.dto.ts", "TypeScript", 25, 0, 0, 0, 0, 0, 0, 1, 26
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/media/media.service.ts", "TypeScript", 20, 0, 0, 0, 0, 0, 4, 3, 27
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/onboarding/onboarding.controller.ts", "TypeScript", 2, 0, 0, 0, 0, 0, 0, 0, 2
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/onboarding/onboarding.service.ts", "TypeScript", -6, 0, 0, 0, 0, 0, -1, -1, -8
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/private-groups/private-groups.controller.ts", "TypeScript", 22, 0, 0, 0, 0, 0, 0, 4, 26
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/private-groups/private-groups.module.ts", "TypeScript", 11, 0, 0, 0, 0, 0, 0, 1, 12
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/private-groups/private-groups.service.ts", "TypeScript", 102, 0, 0, 0, 0, 0, 11, 16, 129
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/properties/dto/update-property.dto.ts", "TypeScript", 13, 0, 0, 0, 0, 0, 1, 4, 18
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/properties/properties.service.ts", "TypeScript", 24, 0, 0, 0, 0, 0, 1, 4, 29
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/public/public.controller.ts", "TypeScript", 2, 0, 0, 0, 0, 0, 0, 1, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/settings/settings.controller.ts", "TypeScript", 38, 0, 0, 0, 0, 0, 0, 5, 43
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/settings/settings.module.ts", "TypeScript", 10, 0, 0, 0, 0, 0, 0, 1, 11
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/settings/settings.service.ts", "TypeScript", 86, 0, 0, 0, 0, 0, 0, 12, 98
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/shortlists/shortlists.controller.ts", "TypeScript", 64, 0, 0, 0, 0, 0, 0, 12, 76
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/shortlists/shortlists.module.ts", "TypeScript", 11, 0, 0, 0, 0, 0, 0, 1, 12
+"/Users/zerone/Documents/Coding/projectProp/apps/backend/src/modules/shortlists/shortlists.service.ts", "TypeScript", 120, 0, 0, 0, 0, 0, 2, 13, 135
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/next.config.ts", "TypeScript", -8, 0, 0, 0, 0, 0, 13, 3, 8
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/package.json", "JSON", 0, 0, 0, 3, 0, 0, 0, 0, 3
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/public/manifest.json", "JSON", 0, 0, 0, 4, 0, 0, 0, 0, 4
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/public/sw.js", "JavaScript", 0, 0, 0, 0, 8, 0, 1, 2, 11
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/(auth)/login/page.tsx", "TypeScript JSX", 0, 0, 5, 0, 0, 0, 1, 3, 9
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/(auth)/register/page.tsx", "TypeScript JSX", 0, 0, 70, 0, 0, 0, 262, 24, 356
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/_proxy.ts", "TypeScript", 23, 0, 0, 0, 0, 0, 0, 4, 27
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/admin/[...path]/route.ts", "TypeScript", 1, 0, 0, 0, 0, 0, 0, 0, 1
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/agents/[agentId]/properties/route.ts", "TypeScript", -9, 0, 0, 0, 0, 0, 0, -5, -14
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/agents/[agentId]/route.ts", "TypeScript", -21, 0, 0, 0, 0, 0, -1, -6, -28
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/agents/route.ts", "TypeScript", -26, 0, 0, 0, 0, 0, 0, -5, -31
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/auth/[...path]/route.ts", "TypeScript", 6, 0, 0, 0, 0, 0, 0, 7, 13
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/auth/google/callback/route.ts", "TypeScript", 33, 0, 0, 0, 0, 0, 0, 8, 41
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/auth/logout/route.ts", "TypeScript", 16, 0, 0, 0, 0, 0, 1, 6, 23
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/billing/[...path]/route.ts", "TypeScript", 8, 0, 0, 0, 0, 0, 0, 2, 10
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/billing/route.ts", "TypeScript", 5, 0, 0, 0, 0, 0, 0, 1, 6
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/clients/[id]/follow-up/route.ts", "TypeScript", 8, 0, 0, 0, 0, 0, 0, 3, 11
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/clients/[id]/notes/route.ts", "TypeScript", 10, 0, 0, 0, 0, 0, 0, 4, 14
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/clients/[id]/route.ts", "TypeScript", -17, 0, 0, 0, 0, 0, 0, -3, -20
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/clients/[id]/share-token/route.ts", "TypeScript", -11, 0, 0, 0, 0, 0, 0, -2, -13
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/clients/client-property/[id]/follow-up/route.ts", "TypeScript", -31, 0, 0, 0, 0, 0, 0, -5, -36
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/clients/client-property/[id]/whatsapp-draft/route.ts", "TypeScript", -21, 0, 0, 0, 0, 0, 0, -5, -26
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/clients/client-property/[id]/whatsapp-sent/route.ts", "TypeScript", -22, 0, 0, 0, 0, 0, 0, -5, -27
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/clients/follow-ups/today/route.ts", "TypeScript", -8, 0, 0, 0, 0, 0, 0, -3, -11
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/clients/follow-ups/upcoming/route.ts", "TypeScript", -8, 0, 0, 0, 0, 0, 0, -3, -11
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/clients/leads/route.ts", "TypeScript", -19, 0, 0, 0, 0, 0, 0, -3, -22
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/clients/route.ts", "TypeScript", 5, 0, 0, 0, 0, 0, 1, 1, 7
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/clients/share-token-by-phone/route.ts", "TypeScript", -9, 0, 0, 0, 0, 0, 0, -2, -11
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/collections/[...path]/route.ts", "TypeScript", 24, 0, 0, 0, 0, 0, 0, 3, 27
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/collections/route.ts", "TypeScript", 14, 0, 0, 0, 0, 0, 0, 2, 16
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/dashboard/stats/route.ts", "TypeScript", 4, 0, 0, 0, 0, 0, 0, 1, 5
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/deals/[...path]/route.ts", "TypeScript", -18, 0, 0, 0, 0, 0, -1, -2, -21
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/deals/route.ts", "TypeScript", -19, 0, 0, 0, 0, 0, 0, -3, -22
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/ingestion/[...path]/route.ts", "TypeScript", -24, 0, 0, 0, 0, 0, 0, -1, -25
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/media/[...path]/route.ts", "TypeScript", -44, 0, 0, 0, 0, 0, 0, -7, -51
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/media/route.ts", "TypeScript", -18, 0, 0, 0, 0, 0, 0, -3, -21
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/onboarding/[...path]/route.ts", "TypeScript", -24, 0, 0, 0, 0, 0, -1, -6, -31
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/private-groups/[...path]/route.ts", "TypeScript", 8, 0, 0, 0, 0, 0, 0, 3, 11
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/private-groups/route.ts", "TypeScript", 5, 0, 0, 0, 0, 0, 0, 1, 6
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/properties/[id]/activities/route.ts", "TypeScript", -22, 0, 0, 0, 0, 0, 0, -5, -27
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/properties/[id]/agents/[agentId]/route.ts", "TypeScript", -19, 0, 0, 0, 0, 0, 0, -6, -25
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/properties/[id]/attach-agent/route.ts", "TypeScript", -34, 0, 0, 0, 0, 0, 0, -6, -40
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/properties/[id]/availability/route.ts", "TypeScript", -30, 0, 0, 0, 0, 0, -1, -5, -36
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/properties/[id]/leads/route.ts", "TypeScript", -19, 0, 0, 0, 0, 0, 0, -5, -24
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/properties/[id]/neighbors/route.ts", "TypeScript", -24, 0, 0, 0, 0, 0, 0, -5, -29
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/properties/[id]/route.ts", "TypeScript", -48, 0, 0, 0, 0, 0, -6, -11, -65
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/properties/[id]/share/route.ts", "TypeScript", -11, 0, 0, 0, 0, 0, 0, -2, -13
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/properties/route.ts", "TypeScript", -10, 0, 0, 0, 0, 0, 0, -4, -14
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/public/share/[token]/respond/route.ts", "TypeScript", 1, 0, 0, 0, 0, 0, 0, 0, 1
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/public/share/[token]/route.ts", "TypeScript", 1, 0, 0, 0, 0, 0, 0, 0, 1
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/settings/[...path]/route.ts", "TypeScript", 9, 0, 0, 0, 0, 0, 0, 2, 11
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/shortlists/[...path]/route.ts", "TypeScript", 24, 0, 0, 0, 0, 0, 0, 3, 27
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/shortlists/route.ts", "TypeScript", 14, 0, 0, 0, 0, 0, 0, 2, 16
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/team/[...path]/route.ts", "TypeScript", -10, 0, 0, 0, 0, 0, 0, -4, -14
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/api/team/route.ts", "TypeScript", -14, 0, 0, 0, 0, 0, 0, -2, -16
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/global-error.tsx", "TypeScript JSX", 0, 0, 30, 0, 0, 0, 0, 2, 32
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/globals 2.css", "PostCSS", 0, 0, 0, 0, 0, 94, 45, 11, 150
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/layout.tsx", "TypeScript JSX", 0, 0, 37, 0, 0, 0, -8, -4, 25
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/onboarding/OnboardingFlow.tsx", "TypeScript JSX", 0, 0, -223, 0, 0, 0, -11, -18, -252
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/onboarding/page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, -10, -1, -11
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/onboarding/phone/page.tsx", "TypeScript JSX", 0, 0, 80, 0, 0, 0, 0, 11, 91
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/admin/users/AdminUsersClient.tsx", "TypeScript JSX", 0, 0, 59, 0, 0, 0, -2, 7, 64
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/admin/users/page.tsx", "TypeScript JSX", 0, 0, -7, 0, 0, 0, 0, 0, -7
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/agents/AgentList.tsx", "TypeScript JSX", 0, 0, 3, 0, 0, 0, 17, 5, 25
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/clients-hub/page.tsx", "TypeScript JSX", 0, 0, 481, 0, 0, 0, 56, 56, 593
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/clients/ClientPropertiesGrid.tsx", "TypeScript JSX", 0, 0, 4, 0, 0, 0, 0, 0, 4
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/clients/ClientPropertiesTable.tsx", "TypeScript JSX", 0, 0, 4, 0, 0, 0, 0, 1, 5
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/clients/[id]/page.tsx", "TypeScript JSX", 0, 0, -55, 0, 0, 0, 360, 35, 340
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/clients/[id]/shortlists/[shortlistId]/ShortlistClient.tsx", "TypeScript JSX", 0, 0, 191, 0, 0, 0, 11, 20, 222
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/clients/[id]/shortlists/[shortlistId]/page.tsx", "TypeScript JSX", 0, 0, 46, 0, 0, 0, 1, 8, 55
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/collections/[id]/CollectionClient.tsx", "TypeScript JSX", 0, 0, 69, 0, 0, 0, 0, 7, 76
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/collections/[id]/page.tsx", "TypeScript JSX", 0, 0, 35, 0, 0, 0, 0, 4, 39
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/collections/page.tsx", "TypeScript JSX", 0, 0, 45, 0, 0, 0, 0, 5, 50
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/dashboard/page.tsx", "TypeScript JSX", 0, 0, 5, 0, 0, 0, 15, 2, 22
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/groups/page.tsx", "TypeScript JSX", 0, 0, 217, 0, 0, 0, 5, 16, 238
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/properties/PropertiesClient.tsx", "TypeScript JSX", 0, 0, 41, 0, 0, 0, 12, 14, 67
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/properties/PropertyFilters.tsx", "TypeScript JSX", 0, 0, -60, 0, 0, 0, -33, -6, -99
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/properties/[id]/loading.tsx", "TypeScript JSX", 0, 0, 50, 0, 0, 0, 4, 6, 60
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/properties/[id]/page.tsx", "TypeScript JSX", 0, 0, 8, 0, 0, 0, -6, -6, -4
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/properties/loading.tsx", "TypeScript JSX", 0, 0, 24, 0, 0, 0, 0, 0, 24
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/settings/page.tsx", "TypeScript JSX", 0, 0, 452, 0, 0, 0, 19, 45, 516
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/app/v2/subscription/page.tsx", "TypeScript JSX", 0, 0, 340, 0, 0, 0, 14, 33, 387
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/ServiceWorkerRegister.tsx", "TypeScript JSX", 0, 0, 12, 0, 0, 0, 1, 3, 16
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/billing/TrialBanner.tsx", "TypeScript JSX", 0, 0, 69, 0, 0, 0, 2, 11, 82
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/cards/PropertyCard.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 17, 7, 24
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/clients/ClientPropertiesTabs.tsx", "TypeScript JSX", 0, 0, -84, 0, 0, 0, 4, -5, -85
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/clients/ClientPropertyActions.tsx", "TypeScript JSX", 0, 0, -29, 0, 0, 0, -1, -3, -33
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/clients/ClientSectionTabs.tsx", "TypeScript JSX", 0, 0, 41, 0, 0, 0, 3, 6, 50
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/collections/SaveToCollectionButton.tsx", "TypeScript JSX", 0, 0, 37, 0, 0, 0, 1, 6, 44
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/collections/SaveToCollectionModal.tsx", "TypeScript JSX", 0, 0, 210, 0, 0, 0, 3, 16, 229
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/layout/AppShell.tsx", "TypeScript JSX", 0, 0, -2, 0, 0, 0, 0, 0, -2
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/layout/InstallAppButton.tsx", "TypeScript JSX", 0, 0, 76, 0, 0, 0, 1, 9, 86
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/layout/PageContainer.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, -6, -1, -7
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/layout/Sidebar.tsx", "TypeScript JSX", 0, 0, 126, 0, 0, 0, 217, 139, 482
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/property/MediaGallery.tsx", "TypeScript JSX", 0, 0, 112, 0, 0, 0, -12, 1, 101
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/property/MediaSliderModal.tsx", "TypeScript JSX", 0, 0, 128, 0, 0, 0, 10, 17, 155
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/property/MediaUploadModal.tsx", "TypeScript JSX", 0, 0, 236, 0, 0, 0, 2, 28, 266
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/property/MessageModal.tsx", "TypeScript JSX", 0, 0, 83, 0, 0, 0, 6, 6, 95
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/property/PropertyAgentsTable.tsx", "TypeScript JSX", 0, 0, 15, 0, 0, 0, -4, 2, 13
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/property/PropertyDetails.tsx", "TypeScript JSX", 0, 0, 37, 0, 0, 0, -10, 3, 30
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/property/PropertySectionTabs.tsx", "TypeScript JSX", 0, 0, 34, 0, 0, 0, 2, 5, 41
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/property/ShareMultiplePropertiesModal.tsx", "TypeScript JSX", 0, 0, 14, 0, 0, 0, -1, 6, 19
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/components/v2/shortlists/AddToShortlistModal.tsx", "TypeScript JSX", 0, 0, 286, 0, 0, 0, 11, 22, 319
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/context/AuthContext.tsx", "TypeScript JSX", 0, 0, 9, 0, 0, 0, -26, -4, -21
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/context/PwaInstallContext.tsx", "TypeScript JSX", 0, 0, 17, 0, 0, 0, 1, 4, 22
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/hooks/usePwaInstall.ts", "TypeScript", 65, 0, 0, 0, 0, 0, 3, 14, 82
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/lib/api.ts", "TypeScript", 3, 0, 0, 0, 0, 0, -14, -3, -14
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/lib/fetcher.ts", "TypeScript", 17, 0, 0, 0, 0, 0, 1, 1, 19
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/lib/serverApi.ts", "TypeScript", 35, 0, 0, 0, 0, 0, -14, 3, 24
+"/Users/zerone/Documents/Coding/projectProp/apps/dashboard/src/proxy.ts", "TypeScript", 20, 0, 0, 0, 0, 0, -6, 1, 15
+"Total", "-", 1083, 856, 3378, 7, 8, 94, 1308, 1039, 7773
