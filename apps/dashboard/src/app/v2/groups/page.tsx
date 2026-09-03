@@ -74,13 +74,14 @@ function AddPrivateGroupModal({ onClose, onSuccess }: { onClose: () => void; onS
       .then(r => r.text())
       .then(text => {
         const data = text ? JSON.parse(text) : null;
+        console.log('PENDING RESPONSE:', data); // add this
         if (data?.code) {
           setRequest({ code: data.code, expiresAt: data.expiresAt, phoneNumber: process.env.NEXT_PUBLIC_PRIVATE_PHONE ?? '' });
           setStep('show');
         } else {
           return fetch('/api/private-groups/request', { method: 'POST', credentials: 'include' })
             .then(r => r.json())
-            .then(d => { setRequest(d); setStep('show'); });
+            .then(d => { console.log('REQUEST RESPONSE:', d); setRequest(d); setStep('show'); });
         }
       })
       .catch(() => setStep('show'));
